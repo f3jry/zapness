@@ -20,8 +20,7 @@ signal sdk_error(message: String)
 # ---------------------------------------------------------------------------
 
 ## Replace with your Discord Application (Client) ID from the Developer Portal.
-## Store this here or load from a config file — it is not a secret.
-const DISCORD_CLIENT_ID := "YOUR_DISCORD_CLIENT_ID_HERE"
+const DISCORD_CLIENT_ID := "1556972180930166785"
 
 # ---------------------------------------------------------------------------
 # State
