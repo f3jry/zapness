@@ -1,0 +1,18 @@
+# Node modules
+node_modules/
+
+# Godot 4 editor and cache files
+.godot/
+splitscreen/.godot/
+*.tmp
+*.translation
+
+# Blender backups
+*.blend1
+
+# Temporary build artifacts
+dist/
+
+# OS and Editor
+.DS_Store
+Thumbs.db

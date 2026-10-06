@@ -1,0 +1,29 @@
+[gd_scene load_steps=8 format=3 uid="uid://cgfss63hxalcx"]
+
+[ext_resource type="Script" path="res://Instantiables/environment/footstep_gen.gd" id="1_0oj1s"]
+[ext_resource type="AudioStream" uid="uid://b54f03pme3qmf" path="res://audio/footstep_concrete_000.ogg" id="2_wpoki"]
+[ext_resource type="AudioStream" uid="uid://cpys1f3uv237x" path="res://audio/footstep_concrete_001.ogg" id="3_034di"]
+[ext_resource type="AudioStream" uid="uid://blpw1q6webjfk" path="res://audio/footstep_concrete_002.ogg" id="4_q3icj"]
+[ext_resource type="AudioStream" uid="uid://bquesg34ah5di" path="res://audio/footstep_concrete_003.ogg" id="5_bvt7e"]
+
+[sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_s2bhx"]
+streams_count = 4
+stream_0/stream = ExtResource("2_wpoki")
+stream_1/stream = ExtResource("3_034di")
+stream_2/stream = ExtResource("4_q3icj")
+stream_3/stream = ExtResource("5_bvt7e")
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_05kd0"]
+size = Vector2(2594, 2376)
+
+[node name="concrete_footstep" type="Area2D"]
+script = ExtResource("1_0oj1s")
+randomizer = SubResource("AudioStreamRandomizer_s2bhx")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(-54, 63)
+shape = SubResource("RectangleShape2D_05kd0")
+debug_color = Color(0, 0.6, 0.701961, 0.0392157)
+
+[connection signal="body_entered" from="." to="." method="p_enter"]
+[connection signal="body_exited" from="." to="." method="p_exit"]

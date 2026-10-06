@@ -1,0 +1,39 @@
+[gd_scene load_steps=3 format=3 uid="uid://cnlxh4me2qqil"]
+
+[ext_resource type="Script" path="res://Scripts/Players/portal_pair.gd" id="1_3tujq"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_bf1ei"]
+radius = 31.257
+
+[node name="portal_pair" type="Node2D"]
+script = ExtResource("1_3tujq")
+
+[node name="portal1" type="CharacterBody2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="portal1"]
+shape = SubResource("CircleShape2D_bf1ei")
+
+[node name="ColorRect" type="ColorRect" parent="portal1"]
+offset_left = -19.0
+offset_top = -19.0
+offset_right = 21.0
+offset_bottom = 21.0
+color = Color(2.31028e-06, 0.607973, 0.664087, 1)
+
+[node name="portal2" type="CharacterBody2D" parent="."]
+collision_layer = 2
+collision_mask = 2
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="portal2"]
+shape = SubResource("CircleShape2D_bf1ei")
+
+[node name="ColorRect2" type="ColorRect" parent="portal2"]
+offset_left = -19.0
+offset_top = -19.0
+offset_right = 21.0
+offset_bottom = 21.0
+color = Color(0.951925, 0, 0.396112, 1)
+
+[node name="teleport_timer" type="Timer" parent="."]
+wait_time = 0.1
+one_shot = true

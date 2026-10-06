@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3 uid="uid://b3m0uwolwn6hm"]
+
+[ext_resource type="Script" path="res://Scripts/Players/P_projectile.gd" id="1_1tbqa"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_2i7et"]
+
+[node name="Projectile" type="CharacterBody2D" groups=["bullet"]]
+physics_interpolation_mode = 1
+script = ExtResource("1_1tbqa")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_2i7et")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_left = -10.0
+offset_top = -11.0
+offset_right = 10.0
+offset_bottom = 10.0

@@ -1,0 +1,25 @@
+[gd_scene load_steps=3 format=3 uid="uid://dhcyfm53rfkxf"]
+
+[ext_resource type="Script" path="res://Scripts/Players/rotation_test.gd" id="1_2ih7f"]
+[ext_resource type="Texture2D" uid="uid://327jldfh3cd3" path="res://Textures/icon.svg" id="2_sq56g"]
+
+[node name="RotationTest" type="Node2D" node_paths=PackedStringArray("portal1", "portal2", "inLaser", "outLaser")]
+script = ExtResource("1_2ih7f")
+portal1 = NodePath("Icon")
+portal2 = NodePath("Icon2")
+inLaser = NodePath("RayCast2D_1")
+outLaser = NodePath("RayCast2D_2")
+
+[node name="Icon" type="Sprite2D" parent="."]
+texture = ExtResource("2_sq56g")
+
+[node name="Icon2" type="Sprite2D" parent="."]
+position = Vector2(200, 0)
+texture = ExtResource("2_sq56g")
+
+[node name="RayCast2D_1" type="RayCast2D" parent="."]
+target_position = Vector2(55.5448, -86.6878)
+
+[node name="RayCast2D_2" type="RayCast2D" parent="."]
+position = Vector2(200, 0)
+target_position = Vector2(55.5448, -86.6878)

@@ -1,0 +1,88 @@
+name: Deploy Zapness to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'splitscreen/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:  # allow manual trigger
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.3"
+  EXPORT_NAME: "Zapness"
+  PROJECT_PATH: "splitscreen"
+
+jobs:
+  export:
+    name: Export Godot Web Build
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Setup export templates
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          # Copy custom nothreads template if present
+          cp Detected_profile_templates/*.zip ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/ 2>/dev/null || true
+          cp templates/*.zip ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/ 2>/dev/null || true
+
+      - name: Create export output directory
+        run: mkdir -p dist
+
+      - name: Export project (Web / nothreads)
+        run: |
+          cd ${PROJECT_PATH}
+          godot --headless --export-release "Web" ../dist/index.html
+        continue-on-error: false
+
+      - name: Copy web scripts to dist
+        run: |
+          mkdir -p dist/Scripts/web
+          cp ${PROJECT_PATH}/Scripts/web/peerjs_bridge.js dist/Scripts/web/
+          cp ${PROJECT_PATH}/Scripts/web/discord_activity.js dist/Scripts/web/
+
+      - name: Add .nojekyll (required for GitHub Pages to serve WASM)
+        run: touch dist/.nojekyll
+
+      - name: Add COOP/COEP headers via _headers file (Cloudflare Pages compat)
+        run: |
+          cat > dist/_headers <<'EOF'
+          /*
+            Cross-Origin-Opener-Policy: same-origin
+            Cross-Origin-Embedder-Policy: require-corp
+          EOF
+
+      - name: Upload artifact for Pages deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: export
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

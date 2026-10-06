@@ -1,0 +1,1099 @@
+[gd_scene load_steps=61 format=3 uid="uid://cfkoa7pd8h7hf"]
+
+[ext_resource type="Script" path="res://Scripts/Players/player_movement.gd" id="2_sqj1h"]
+[ext_resource type="Texture2D" uid="uid://dwr5upfrhu02u" path="res://Textures/circle-bolt-svgrepo-com (2).svg" id="3_h7nwq"]
+[ext_resource type="Script" path="res://Instantiables/player/pixel_art_snap.gd" id="3_heyoy"]
+[ext_resource type="Script" path="res://Instantiables/player/laser_info.gd" id="3_o0hoe"]
+[ext_resource type="Texture2D" uid="uid://cd3e5ydtdpgrt" path="res://Textures/UI/cant.png" id="4_o3od4"]
+[ext_resource type="Script" path="res://Scripts/Players/portal_pair.gd" id="5_1kyu8"]
+[ext_resource type="Script" path="res://Instantiables/player/portal_collision.gd" id="6_8b4io"]
+[ext_resource type="Texture2D" uid="uid://seocv30lcqr4" path="res://Instantiables/player/teleport_gradient.tres" id="6_c5v5c"]
+[ext_resource type="Texture2D" uid="uid://bfm8i1oa3hkxb" path="res://Textures/Player/signal.png" id="6_ewd2v"]
+[ext_resource type="Script" path="res://Instantiables/player/portal_visibility_cast.gd" id="10_hhthg"]
+[ext_resource type="Script" path="res://Instantiables/player/copy_viewport.gd" id="12_5cx46"]
+[ext_resource type="Script" path="res://Instantiables/player/round_rot_sprite.gd" id="12_e3pnv"]
+[ext_resource type="PackedScene" uid="uid://dpx27dq2d5xg4" path="res://Instantiables/player/portal_post_process.tscn" id="12_hgduy"]
+[ext_resource type="Texture2D" uid="uid://c4extd3afleda" path="res://Textures/Player/player_tex_color.png" id="13_3vkd4"]
+[ext_resource type="Texture2D" uid="uid://blddtgkprnt8h" path="res://Textures/Player/player_tex_color45.png" id="14_r2q27"]
+[ext_resource type="Texture2D" uid="uid://fm0g0ij2sh6g" path="res://Textures/Player/legs45.png" id="14_tn5wi"]
+[ext_resource type="Shader" path="res://Instantiables/player/pixel_test.gdshader" id="14_y4sfv"]
+[ext_resource type="Script" path="res://Instantiables/player/footstep_manager.gd" id="16_2v266"]
+[ext_resource type="Script" path="res://Instantiables/player/position_snap.gd" id="16_u23dt"]
+[ext_resource type="Texture2D" uid="uid://cpf45w641ntiw" path="res://Textures/slepice.jpg" id="17_psayn"]
+[ext_resource type="Texture2D" uid="uid://dau52017q0tue" path="res://Textures/Player/mini_gun.png" id="18_dddbf"]
+[ext_resource type="Script" path="res://Instantiables/environment/slepice.gd" id="18_wy0hb"]
+[ext_resource type="Script" path="res://Instantiables/player/bot.gd" id="19_e6pv1"]
+[ext_resource type="Texture2D" uid="uid://cf1k0lxssyaia" path="res://Textures/laser_texture_1.png" id="21_wlcsn"]
+[ext_resource type="Texture2D" uid="uid://hi2yu2pdgusa" path="res://Textures/laser_texture_2.png" id="22_tqvjn"]
+[ext_resource type="Texture2D" uid="uid://chtwnqtiu3ob" path="res://Textures/laser_texture_3.png" id="23_k7h4h"]
+[ext_resource type="Texture2D" uid="uid://ue64otbpyn6c" path="res://Textures/laser_texture_4.png" id="24_ihqa3"]
+[ext_resource type="AudioStream" uid="uid://cbjn5rl4gr8bi" path="res://audio/laser.wav" id="25_vvmpj"]
+[ext_resource type="AudioStream" uid="uid://cofm6uesy2k7w" path="res://audio/portal.wav" id="29_rwo4y"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_22l0s"]
+radius = 48.0
+
+[sub_resource type="Gradient" id="Gradient_biq4l"]
+interpolation_mode = 2
+colors = PackedColorArray(1, 0.414524, 0.528126, 1, 0.737873, 0.389767, 0, 0)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_alnps"]
+size = Vector2(16, 50.3077)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_0kjvn"]
+size = Vector2(120, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_h6lb3"]
+size = Vector2(48, 48)
+
+[sub_resource type="Shader" id="Shader_c8a6p"]
+code = "shader_type canvas_item;
+
+uniform vec4 color : source_color = vec4(1.0);
+uniform float width : hint_range(0, 10) = 1.0;
+uniform int pattern : hint_range(0, 2) = 0; // diamond, circle, square
+uniform bool inside = false;
+uniform bool add_margins = true; // only useful when inside is false
+uniform float transparency : hint_range(0,1) = 1.0;
+void vertex() {
+	if (add_margins) {
+		VERTEX += (UV * 2.0 - 1.0) * width;
+	}
+}
+
+bool hasContraryNeighbour(vec2 uv, vec2 texture_pixel_size, sampler2D texture) {
+	for (float i = -ceil(width); i <= ceil(width); i++) {
+		float x = abs(i) > width ? width * sign(i) : i;
+		float offset;
+
+		if (pattern == 0) {
+			offset = width - abs(x);
+		} else if (pattern == 1) {
+			offset = floor(sqrt(pow(width + 0.5, 2) - x * x));
+		} else if (pattern == 2) {
+			offset = width;
+		}
+
+		for (float j = -ceil(offset); j <= ceil(offset); j++) {
+			float y = abs(j) > offset ? offset * sign(j) : j;
+			vec2 xy = uv + texture_pixel_size * vec2(x, y);
+
+			if ((xy != clamp(xy, vec2(0.0), vec2(1.0)) || texture(texture, xy).a <= 0.0) == inside) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void fragment() {
+	vec2 uv = UV;
+
+	if (add_margins) {
+		vec2 texture_pixel_size = vec2(1.0) / (vec2(1.0) / TEXTURE_PIXEL_SIZE + vec2(width * 2.0));
+
+		uv = (uv - texture_pixel_size * width) * TEXTURE_PIXEL_SIZE / texture_pixel_size;
+
+		if (uv != clamp(uv, vec2(0.0), vec2(1.0))) {
+			COLOR.a = 0.0;
+		} else {
+			COLOR = texture(TEXTURE, uv);
+		}
+	} else {
+		COLOR = texture(TEXTURE, uv);
+	}
+
+	if ((COLOR.a > 0.0) == inside && hasContraryNeighbour(uv, TEXTURE_PIXEL_SIZE, TEXTURE)) {
+		COLOR.rgb = inside ? mix(COLOR.rgb, color.rgb, color.a) : color.rgb;
+		COLOR.a += (1.0 - COLOR.a) * color.a;
+	}
+	COLOR.a = transparency;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ve342"]
+shader = SubResource("Shader_c8a6p")
+shader_parameter/color = Color(0.912434, 0.404555, 0, 1)
+shader_parameter/width = 8.0
+shader_parameter/pattern = 0
+shader_parameter/inside = false
+shader_parameter/add_margins = true
+shader_parameter/transparency = 1.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_utjj5"]
+size = Vector2(22, 141)
+
+[sub_resource type="Shader" id="Shader_7w5bq"]
+code = "shader_type canvas_item;
+
+uniform vec4 color : source_color = vec4(1.0);
+uniform float width : hint_range(0, 10) = 1.0;
+uniform int pattern : hint_range(0, 2) = 0; // diamond, circle, square
+uniform bool inside = false;
+uniform bool add_margins = true; // only useful when inside is false
+uniform float transparency = 1.0;
+void vertex() {
+	if (add_margins) {
+		VERTEX += (UV * 2.0 - 1.0) * width;
+	}
+}
+
+bool hasContraryNeighbour(vec2 uv, vec2 texture_pixel_size, sampler2D texture) {
+	for (float i = -ceil(width); i <= ceil(width); i++) {
+		float x = abs(i) > width ? width * sign(i) : i;
+		float offset;
+
+		if (pattern == 0) {
+			offset = width - abs(x);
+		} else if (pattern == 1) {
+			offset = floor(sqrt(pow(width + 0.5, 2) - x * x));
+		} else if (pattern == 2) {
+			offset = width;
+		}
+
+		for (float j = -ceil(offset); j <= ceil(offset); j++) {
+			float y = abs(j) > offset ? offset * sign(j) : j;
+			vec2 xy = uv + texture_pixel_size * vec2(x, y);
+
+			if ((xy != clamp(xy, vec2(0.0), vec2(1.0)) || texture(texture, xy).a <= 0.0) == inside) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void fragment() {
+	vec2 uv = UV;
+
+	if (add_margins) {
+		vec2 texture_pixel_size = vec2(1.0) / (vec2(1.0) / TEXTURE_PIXEL_SIZE + vec2(width * 2.0));
+
+		uv = (uv - texture_pixel_size * width) * TEXTURE_PIXEL_SIZE / texture_pixel_size;
+
+		if (uv != clamp(uv, vec2(0.0), vec2(1.0))) {
+			COLOR.a = 0.0;
+		} else {
+			COLOR = texture(TEXTURE, uv);
+		}
+	} else {
+		COLOR = texture(TEXTURE, uv);
+	}
+
+	if ((COLOR.a > 0.0) == inside && hasContraryNeighbour(uv, TEXTURE_PIXEL_SIZE, TEXTURE)) {
+		COLOR.rgb = inside ? mix(COLOR.rgb, color.rgb, color.a) : color.rgb;
+		COLOR.a += (1.0 - COLOR.a) * color.a;
+	}
+	COLOR.a = transparency;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_46cjh"]
+shader = SubResource("Shader_7w5bq")
+shader_parameter/color = Color(0.912434, 0.404555, 0, 1)
+shader_parameter/width = 8.0
+shader_parameter/pattern = 0
+shader_parameter/inside = false
+shader_parameter/add_margins = true
+shader_parameter/transparency = 1.0
+
+[sub_resource type="Shader" id="Shader_gp7d6"]
+code = "shader_type canvas_item;
+
+uniform vec4 color : source_color = vec4(1.0);
+uniform float width : hint_range(0, 10) = 1.0;
+uniform int pattern : hint_range(0, 2) = 0; // diamond, circle, square
+uniform bool inside = false;
+uniform bool add_margins = true; // only useful when inside is false
+uniform float transparency = 1.0;
+void vertex() {
+	if (add_margins) {
+		VERTEX += (UV * 2.0 - 1.0) * width;
+	}
+}
+
+bool hasContraryNeighbour(vec2 uv, vec2 texture_pixel_size, sampler2D texture) {
+	for (float i = -ceil(width); i <= ceil(width); i++) {
+		float x = abs(i) > width ? width * sign(i) : i;
+		float offset;
+
+		if (pattern == 0) {
+			offset = width - abs(x);
+		} else if (pattern == 1) {
+			offset = floor(sqrt(pow(width + 0.5, 2) - x * x));
+		} else if (pattern == 2) {
+			offset = width;
+		}
+
+		for (float j = -ceil(offset); j <= ceil(offset); j++) {
+			float y = abs(j) > offset ? offset * sign(j) : j;
+			vec2 xy = uv + texture_pixel_size * vec2(x, y);
+
+			if ((xy != clamp(xy, vec2(0.0), vec2(1.0)) || texture(texture, xy).a <= 0.0) == inside) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void fragment() {
+	vec2 uv = UV;
+
+	if (add_margins) {
+		vec2 texture_pixel_size = vec2(1.0) / (vec2(1.0) / TEXTURE_PIXEL_SIZE + vec2(width * 2.0));
+
+		uv = (uv - texture_pixel_size * width) * TEXTURE_PIXEL_SIZE / texture_pixel_size;
+
+		if (uv != clamp(uv, vec2(0.0), vec2(1.0))) {
+			COLOR.a = 0.0;
+		} else {
+			COLOR = texture(TEXTURE, uv);
+		}
+	} else {
+		COLOR = texture(TEXTURE, uv);
+	}
+
+	if ((COLOR.a > 0.0) == inside && hasContraryNeighbour(uv, TEXTURE_PIXEL_SIZE, TEXTURE)) {
+		COLOR.rgb = inside ? mix(COLOR.rgb, color.rgb, color.a) : color.rgb;
+		COLOR.a += (1.0 - COLOR.a) * color.a;
+	}
+	COLOR.a = transparency;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rtwor"]
+shader = SubResource("Shader_gp7d6")
+shader_parameter/color = Color(2.02149e-06, 0.640106, 0.786097, 1)
+shader_parameter/width = 8.0
+shader_parameter/pattern = 0
+shader_parameter/inside = false
+shader_parameter/add_margins = true
+shader_parameter/transparency = 1.0
+
+[sub_resource type="Shader" id="Shader_jmqpm"]
+code = "shader_type canvas_item;
+
+uniform vec4 color : source_color = vec4(1.0);
+uniform float width : hint_range(0, 10) = 1.0;
+uniform int pattern : hint_range(0, 2) = 0; // diamond, circle, square
+uniform bool inside = false;
+uniform bool add_margins = true; // only useful when inside is false
+uniform float transparency = 1.0;
+void vertex() {
+	if (add_margins) {
+		VERTEX += (UV * 2.0 - 1.0) * width;
+	}
+}
+
+bool hasContraryNeighbour(vec2 uv, vec2 texture_pixel_size, sampler2D texture) {
+	for (float i = -ceil(width); i <= ceil(width); i++) {
+		float x = abs(i) > width ? width * sign(i) : i;
+		float offset;
+
+		if (pattern == 0) {
+			offset = width - abs(x);
+		} else if (pattern == 1) {
+			offset = floor(sqrt(pow(width + 0.5, 2) - x * x));
+		} else if (pattern == 2) {
+			offset = width;
+		}
+
+		for (float j = -ceil(offset); j <= ceil(offset); j++) {
+			float y = abs(j) > offset ? offset * sign(j) : j;
+			vec2 xy = uv + texture_pixel_size * vec2(x, y);
+
+			if ((xy != clamp(xy, vec2(0.0), vec2(1.0)) || texture(texture, xy).a <= 0.0) == inside) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void fragment() {
+	vec2 uv = UV;
+
+	if (add_margins) {
+		vec2 texture_pixel_size = vec2(1.0) / (vec2(1.0) / TEXTURE_PIXEL_SIZE + vec2(width * 2.0));
+
+		uv = (uv - texture_pixel_size * width) * TEXTURE_PIXEL_SIZE / texture_pixel_size;
+
+		if (uv != clamp(uv, vec2(0.0), vec2(1.0))) {
+			COLOR.a = 0.0;
+		} else {
+			COLOR = texture(TEXTURE, uv);
+		}
+	} else {
+		COLOR = texture(TEXTURE, uv);
+	}
+
+	if ((COLOR.a > 0.0) == inside && hasContraryNeighbour(uv, TEXTURE_PIXEL_SIZE, TEXTURE)) {
+		COLOR.rgb = inside ? mix(COLOR.rgb, color.rgb, color.a) : color.rgb;
+		COLOR.a += (1.0 - COLOR.a) * color.a;
+	}
+	COLOR.a = transparency;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rcgtp"]
+shader = SubResource("Shader_jmqpm")
+shader_parameter/color = Color(2.88785e-07, 0.640455, 0.784217, 1)
+shader_parameter/width = 8.0
+shader_parameter/pattern = 0
+shader_parameter/inside = false
+shader_parameter/add_margins = true
+shader_parameter/transparency = 1.0
+
+[sub_resource type="Gradient" id="Gradient_jr8bs"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 1)
+
+[sub_resource type="Gradient" id="Gradient_2jm1t"]
+interpolation_mode = 2
+offsets = PackedFloat32Array(0.168831, 0.493506, 1)
+colors = PackedColorArray(1, 1, 1, 1, 0.993146, 0.668301, 0.353218, 1, 0.92549, 0.521569, 0.509804, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_ipos2"]
+gradient = SubResource("Gradient_2jm1t")
+width = 8
+height = 8
+fill = 2
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.9, 0.1)
+
+[sub_resource type="Gradient" id="Gradient_6xec6"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.768627)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ucg6g"]
+shader = ExtResource("14_y4sfv")
+
+[sub_resource type="Animation" id="Animation_0etcb"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:y_coord_leg")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+
+[sub_resource type="Animation" id="Animation_6a38q"]
+resource_name = "walk"
+loop_mode = 1
+step = 0.25
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:y_coord_leg")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.5, 0.75),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_1c0fr"]
+_data = {
+"RESET": SubResource("Animation_0etcb"),
+"walk": SubResource("Animation_6a38q")
+}
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_mvlyj"]
+particle_flag_disable_z = true
+spread = 180.0
+initial_velocity_min = 500.0
+initial_velocity_max = 500.0
+gravity = Vector3(0, 0, 0)
+scale_min = 8.0
+scale_max = 8.0
+turbulence_enabled = true
+
+[sub_resource type="Gradient" id="Gradient_h783l"]
+interpolation_mode = 1
+offsets = PackedFloat32Array(0, 0.390476, 0.752381, 1)
+colors = PackedColorArray(0.156863, 0.2, 0.215686, 1, 0.203922, 0, 0.639216, 0.266667, 0.282353, 0, 0.854902, 0.384314, 0.119193, 0.168641, 0.345184, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_18ha1"]
+gradient = SubResource("Gradient_h783l")
+width = 8
+height = 8
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_3bs8f"]
+
+[sub_resource type="Curve" id="Curve_5dtm6"]
+bake_resolution = 10
+_data = [Vector2(0, 1), 14.0, -0.751504, 0, 0, Vector2(0.254274, 0.4956), 0.0, 0.0, 0, 0, Vector2(1, 0.25), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Curve" id="Curve_12a7k"]
+max_value = 2.0
+bake_resolution = 10
+_data = [Vector2(0, 0.25), 14.0, -0.751504, 0, 0, Vector2(0.254, 1), 0.0, 0.0, 0, 0, Vector2(1, 2), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Animation" id="Animation_hfcil"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("portal_laser_line:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [ExtResource("21_wlcsn")]
+}
+
+[sub_resource type="Animation" id="Animation_ihqa0"]
+resource_name = "laser_flash"
+length = 0.3
+step = 0.025
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("portal_laser_line:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.15, 0.225),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": [ExtResource("21_wlcsn"), ExtResource("22_tqvjn"), ExtResource("23_k7h4h"), ExtResource("24_ihqa3")]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_cc2rj"]
+_data = {
+"RESET": SubResource("Animation_hfcil"),
+"laser_flash": SubResource("Animation_ihqa0")
+}
+
+[node name="player" type="CharacterBody2D" node_paths=PackedStringArray("cam", "portal_pair", "footstep_manager", "laser_info", "portal_particle") groups=["player"]]
+collision_layer = 65
+collision_mask = 65
+slide_on_ceiling = false
+floor_constant_speed = true
+script = ExtResource("2_sqj1h")
+cam = NodePath("cam")
+portal_pair = NodePath("abilities/portal_pair")
+footstep_manager = NodePath("Footstep_manager")
+laser_info = NodePath("proc_marker")
+portal_particle = NodePath("proc_marker/portal_particle")
+
+[node name="portal_laser" type="RayCast2D" parent="."]
+collision_mask = 3
+
+[node name="laser_cast" type="RayCast2D" parent="."]
+collision_mask = 3
+collide_with_areas = true
+
+[node name="Sprite2D" type="Sprite2D" parent="laser_cast"]
+position = Vector2(0, -64)
+
+[node name="laser" type="Sprite2D" parent="laser_cast/Sprite2D"]
+visible = false
+script = ExtResource("3_heyoy")
+
+[node name="portal_cast" type="RayCast2D" parent="."]
+modulate = Color(1, 0, 1, 1)
+collision_mask = 129
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_22l0s")
+
+[node name="proc_marker" type="Marker2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(80, 0)
+script = ExtResource("3_o0hoe")
+
+[node name="ColorRect" type="ColorRect" parent="proc_marker"]
+visible = false
+offset_left = -7.5
+offset_top = -7.5
+offset_right = 7.5
+offset_bottom = 7.5
+color = Color(1, 1, 1, 0.443137)
+
+[node name="shoot_progress" type="TextureProgressBar" parent="proc_marker"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.666667)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+max_value = 0.5
+step = 0.01
+value = 0.5
+fill_mode = 4
+texture_progress = ExtResource("3_h7nwq")
+
+[node name="cam_offset" type="Node2D" parent="proc_marker"]
+position = Vector2(1000, 0)
+
+[node name="cant" type="Sprite2D" parent="proc_marker"]
+modulate = Color(1, 1, 1, 0)
+texture_filter = 1
+scale = Vector2(8, 8)
+texture = ExtResource("4_o3od4")
+
+[node name="portal_particle" type="CPUParticles2D" parent="proc_marker"]
+texture_filter = 1
+emitting = false
+amount = 2
+lifetime = 0.1
+one_shot = true
+fixed_fps = 30
+local_coords = true
+draw_order = 1
+texture = ExtResource("6_ewd2v")
+direction = Vector2(0, -1)
+spread = 5.0
+gravity = Vector2(0, -9.8)
+initial_velocity_min = 700.0
+initial_velocity_max = 700.0
+angle_min = 1.07288e-05
+angle_max = 1.07288e-05
+scale_amount_min = 8.0
+scale_amount_max = 8.0
+color_ramp = SubResource("Gradient_biq4l")
+
+[node name="shoot_timer" type="Timer" parent="."]
+wait_time = 0.5
+one_shot = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="UI_global_margin" type="MarginContainer" parent="CanvasLayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="abilities" type="CanvasGroup" parent="."]
+unique_name_in_owner = true
+
+[node name="portal_pair" type="Node2D" parent="abilities" node_paths=PackedStringArray("portals", "port_viewports", "entrances", "laser_info", "cams")]
+script = ExtResource("5_1kyu8")
+portals = [NodePath("portal1"), NodePath("portal2")]
+port_viewports = [NodePath("portal1/portal_viewport"), NodePath("portal2/portal_viewport")]
+entrances = [NodePath("portal1/portal_enter"), NodePath("portal2/portal_enter")]
+laser_info = NodePath("../../proc_marker")
+cams = [NodePath("portal1/portal_viewport/portal_sub/Node2D/port_cam1"), NodePath("portal2/portal_viewport/portal_sub/Node2D/port_cam2")]
+
+[node name="portal1" type="Area2D" parent="abilities/portal_pair"]
+physics_interpolation_mode = 1
+top_level = true
+position = Vector2(-102, -177)
+collision_layer = 2
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="abilities/portal_pair/portal1"]
+position = Vector2(-83.2, 0.000305176)
+rotation = -1.5708
+scale = Vector2(1.3, 1.3)
+shape = SubResource("RectangleShape2D_alnps")
+
+[node name="RayCast2D" type="RayCast2D" parent="abilities/portal_pair/portal1"]
+
+[node name="portal_enter" type="Sprite2D" parent="abilities/portal_pair/portal1" node_paths=PackedStringArray("area")]
+rotation = -1.5708
+script = ExtResource("6_8b4io")
+area = NodePath("Area2D")
+
+[node name="forhuman" type="StaticBody2D" parent="abilities/portal_pair/portal1/portal_enter"]
+scale = Vector2(1.3, 1.3)
+collision_layer = 2
+collision_mask = 2
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="abilities/portal_pair/portal1/portal_enter/forhuman"]
+modulate = Color(0, 0.592813, 0.452152, 1)
+position = Vector2(27.7846, 0.123062)
+polygon = PackedVector2Array(28, -64, 28, 0, 10, -64)
+
+[node name="CollisionPolygon2D2" type="CollisionPolygon2D" parent="abilities/portal_pair/portal1/portal_enter/forhuman"]
+modulate = Color(0, 0.592813, 0.452152, 1)
+position = Vector2(-84.2154, 0.123062)
+polygon = PackedVector2Array(46, -64, 28, -64, 28, 0)
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="abilities/portal_pair/portal1/portal_enter/forhuman"]
+position = Vector2(0, -73.8462)
+shape = SubResource("RectangleShape2D_0kjvn")
+
+[node name="Area2D" type="Area2D" parent="abilities/portal_pair/portal1/portal_enter" groups=["portal"]]
+physics_interpolation_mode = 1
+scale = Vector2(1.3, 1.3)
+collision_layer = 31
+collision_mask = 31
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="abilities/portal_pair/portal1/portal_enter/Area2D"]
+position = Vector2(0, -16)
+shape = SubResource("RectangleShape2D_h6lb3")
+debug_color = Color(0.238253, 0.507407, 1, 0.42)
+
+[node name="RemoteTransform2D" type="RemoteTransform2D" parent="abilities/portal_pair/portal1/portal_enter"]
+position = Vector2(0, -83.2)
+scale = Vector2(1.3, 1.3)
+remote_path = NodePath("../../CollisionShape2D")
+
+[node name="portal_visibility_cast" type="RayCast2D" parent="abilities/portal_pair/portal1/portal_enter" node_paths=PackedStringArray("viewport", "viewport2", "collision_exclude")]
+position = Vector2(0, 13)
+rotation = 1.5708
+script = ExtResource("10_hhthg")
+viewport = NodePath("../../portal_viewport")
+viewport2 = NodePath("../../portal_viewport2")
+mat = SubResource("ShaderMaterial_ve342")
+collision_exclude = NodePath("../portal_block")
+
+[node name="portal_pass" type="Sprite2D" parent="abilities/portal_pair/portal1/portal_enter"]
+light_mask = 4
+visibility_layer = 2
+texture_filter = 1
+scale = Vector2(8, 8)
+texture = ExtResource("6_c5v5c")
+
+[node name="portal_block" type="StaticBody2D" parent="abilities/portal_pair/portal1/portal_enter" groups=["portal"]]
+rotation = 1.5708
+collision_layer = 128
+collision_mask = 128
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="abilities/portal_pair/portal1/portal_enter/portal_block"]
+position = Vector2(1, -0.5)
+shape = SubResource("RectangleShape2D_utjj5")
+
+[node name="right_al" type="RayCast2D" parent="abilities/portal_pair/portal1/portal_enter"]
+position = Vector2(40, 1)
+rotation = -1.57079
+target_position = Vector2(32, 0)
+hit_from_inside = true
+
+[node name="left_al" type="RayCast2D" parent="abilities/portal_pair/portal1/portal_enter"]
+position = Vector2(-40, 1)
+rotation = -1.57079
+target_position = Vector2(32, 0)
+hit_from_inside = true
+
+[node name="dir_hole" type="Sprite2D" parent="abilities/portal_pair/portal1"]
+visible = false
+visibility_layer = 32
+z_index = 10
+texture = ExtResource("6_c5v5c")
+
+[node name="portal_viewport" type="SubViewportContainer" parent="abilities/portal_pair/portal1" groups=["viewport"]]
+visibility_layer = 4
+z_index = -1
+material = SubResource("ShaderMaterial_46cjh")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -128.0
+offset_top = -128.0
+offset_right = 128.0
+offset_bottom = 128.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(128, 128)
+
+[node name="portal_sub" type="SubViewport" parent="abilities/portal_pair/portal1/portal_viewport"]
+handle_input_locally = false
+canvas_cull_mask = 4294967289
+size = Vector2i(256, 256)
+render_target_update_mode = 4
+
+[node name="Node2D" type="Node2D" parent="abilities/portal_pair/portal1/portal_viewport/portal_sub"]
+top_level = true
+
+[node name="port_cam1" type="Camera2D" parent="abilities/portal_pair/portal1/portal_viewport/portal_sub/Node2D"]
+top_level = true
+ignore_rotation = false
+
+[node name="CanvasLayer" type="CanvasLayer" parent="abilities/portal_pair/portal1/portal_viewport/portal_sub"]
+
+[node name="pp1" parent="abilities/portal_pair/portal1/portal_viewport/portal_sub/CanvasLayer" instance=ExtResource("12_hgduy")]
+
+[node name="pp2" parent="abilities/portal_pair/portal1/portal_viewport/portal_sub/CanvasLayer" instance=ExtResource("12_hgduy")]
+visibility_layer = 2
+
+[node name="portal_viewport2" type="SubViewportContainer" parent="abilities/portal_pair/portal1" node_paths=PackedStringArray("viewport_to_copy", "cam_to_copy", "own_cam") groups=["viewport"]]
+visibility_layer = 8
+z_index = -1
+material = SubResource("ShaderMaterial_rtwor")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -128.0
+offset_top = -128.0
+offset_right = 128.0
+offset_bottom = 128.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(128, 128)
+script = ExtResource("12_5cx46")
+viewport_to_copy = NodePath("../portal_viewport")
+cam_to_copy = NodePath("../portal_viewport/portal_sub/Node2D/port_cam1")
+own_cam = NodePath("portal_sub/Node2D/port_copycam")
+
+[node name="portal_sub" type="SubViewport" parent="abilities/portal_pair/portal1/portal_viewport2"]
+handle_input_locally = false
+canvas_cull_mask = 4294967289
+size = Vector2i(256, 256)
+render_target_update_mode = 4
+
+[node name="Node2D" type="Node2D" parent="abilities/portal_pair/portal1/portal_viewport2/portal_sub"]
+top_level = true
+
+[node name="port_copycam" type="Camera2D" parent="abilities/portal_pair/portal1/portal_viewport2/portal_sub/Node2D"]
+top_level = true
+ignore_rotation = false
+
+[node name="CanvasLayer" type="CanvasLayer" parent="abilities/portal_pair/portal1/portal_viewport2/portal_sub"]
+
+[node name="pp1" parent="abilities/portal_pair/portal1/portal_viewport2/portal_sub/CanvasLayer" instance=ExtResource("12_hgduy")]
+
+[node name="pp2" parent="abilities/portal_pair/portal1/portal_viewport2/portal_sub/CanvasLayer" instance=ExtResource("12_hgduy")]
+visibility_layer = 2
+
+[node name="portal2" type="Area2D" parent="abilities/portal_pair"]
+physics_interpolation_mode = 1
+top_level = true
+position = Vector2(88, -179)
+collision_layer = 4
+collision_mask = 4
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="abilities/portal_pair/portal2"]
+position = Vector2(-83.2, 0.000305176)
+rotation = -1.5708
+scale = Vector2(1.3, 1.3)
+shape = SubResource("RectangleShape2D_alnps")
+
+[node name="RayCast2D" type="RayCast2D" parent="abilities/portal_pair/portal2"]
+
+[node name="portal_enter" type="Sprite2D" parent="abilities/portal_pair/portal2" node_paths=PackedStringArray("area")]
+rotation = -1.5708
+script = ExtResource("6_8b4io")
+area = NodePath("Area2D")
+collision_layer_value = 4
+collision_mask_value = 4
+
+[node name="forhuman" type="StaticBody2D" parent="abilities/portal_pair/portal2/portal_enter"]
+scale = Vector2(1.3, 1.3)
+collision_layer = 4
+collision_mask = 4
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="abilities/portal_pair/portal2/portal_enter/forhuman"]
+position = Vector2(27.7846, 0.123062)
+polygon = PackedVector2Array(28, -64, 28, 0, 10, -64)
+
+[node name="CollisionPolygon2D2" type="CollisionPolygon2D" parent="abilities/portal_pair/portal2/portal_enter/forhuman"]
+position = Vector2(-84.2154, 0.123062)
+polygon = PackedVector2Array(46, -64, 28, -64, 28, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="abilities/portal_pair/portal2/portal_enter/forhuman"]
+position = Vector2(0, -73.8462)
+shape = SubResource("RectangleShape2D_0kjvn")
+
+[node name="Area2D" type="Area2D" parent="abilities/portal_pair/portal2/portal_enter" groups=["portal"]]
+physics_interpolation_mode = 1
+scale = Vector2(1.3, 1.3)
+collision_layer = 31
+collision_mask = 31
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="abilities/portal_pair/portal2/portal_enter/Area2D"]
+position = Vector2(0, -16)
+shape = SubResource("RectangleShape2D_h6lb3")
+
+[node name="RemoteTransform2D" type="RemoteTransform2D" parent="abilities/portal_pair/portal2/portal_enter"]
+position = Vector2(0, -83.2)
+scale = Vector2(1.3, 1.3)
+remote_path = NodePath("../../CollisionShape2D2")
+
+[node name="portal_visibility_cast" type="RayCast2D" parent="abilities/portal_pair/portal2/portal_enter" node_paths=PackedStringArray("viewport", "viewport2", "collision_exclude")]
+position = Vector2(0, 13)
+scale = Vector2(1.3, 1.3)
+script = ExtResource("10_hhthg")
+viewport = NodePath("../../portal_viewport")
+viewport2 = NodePath("../../portal_viewport2")
+mat = SubResource("ShaderMaterial_ve342")
+collision_exclude = NodePath("../portal_block")
+
+[node name="portal_pass" type="Sprite2D" parent="abilities/portal_pair/portal2/portal_enter"]
+texture_filter = 1
+scale = Vector2(8, 8)
+texture = ExtResource("6_c5v5c")
+
+[node name="portal_block" type="StaticBody2D" parent="abilities/portal_pair/portal2/portal_enter" groups=["portal"]]
+rotation = 1.5708
+collision_layer = 128
+collision_mask = 128
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="abilities/portal_pair/portal2/portal_enter/portal_block"]
+position = Vector2(1, -0.5)
+shape = SubResource("RectangleShape2D_utjj5")
+debug_color = Color(0.973544, 0, 0.433228, 0.42)
+
+[node name="right_al" type="RayCast2D" parent="abilities/portal_pair/portal2/portal_enter"]
+position = Vector2(40, 1)
+rotation = -1.57079
+target_position = Vector2(32, 0)
+hit_from_inside = true
+
+[node name="left_al" type="RayCast2D" parent="abilities/portal_pair/portal2/portal_enter"]
+position = Vector2(-40, 1)
+rotation = -1.57079
+target_position = Vector2(32, 0)
+hit_from_inside = true
+
+[node name="dir_hole" type="Sprite2D" parent="abilities/portal_pair/portal2"]
+visible = false
+visibility_layer = 32
+texture = ExtResource("6_c5v5c")
+
+[node name="portal_viewport" type="SubViewportContainer" parent="abilities/portal_pair/portal2" groups=["viewport"]]
+visibility_layer = 4
+z_index = -1
+material = SubResource("ShaderMaterial_ve342")
+offset_left = -128.0
+offset_top = -128.0
+offset_right = 128.0
+offset_bottom = 128.0
+pivot_offset = Vector2(128, 128)
+
+[node name="portal_sub" type="SubViewport" parent="abilities/portal_pair/portal2/portal_viewport"]
+handle_input_locally = false
+canvas_cull_mask = 4294967289
+size = Vector2i(256, 256)
+render_target_update_mode = 4
+
+[node name="Node2D" type="Node2D" parent="abilities/portal_pair/portal2/portal_viewport/portal_sub"]
+top_level = true
+
+[node name="port_cam2" type="Camera2D" parent="abilities/portal_pair/portal2/portal_viewport/portal_sub/Node2D"]
+top_level = true
+ignore_rotation = false
+
+[node name="CanvasLayer" type="CanvasLayer" parent="abilities/portal_pair/portal2/portal_viewport/portal_sub"]
+
+[node name="pp1" parent="abilities/portal_pair/portal2/portal_viewport/portal_sub/CanvasLayer" instance=ExtResource("12_hgduy")]
+
+[node name="pp2" parent="abilities/portal_pair/portal2/portal_viewport/portal_sub/CanvasLayer" instance=ExtResource("12_hgduy")]
+modulate = Color(1, 0, 1, 0.435294)
+visibility_layer = 2
+
+[node name="portal_viewport2" type="SubViewportContainer" parent="abilities/portal_pair/portal2" node_paths=PackedStringArray("viewport_to_copy", "cam_to_copy", "own_cam") groups=["viewport"]]
+visibility_layer = 8
+z_index = -1
+material = SubResource("ShaderMaterial_rcgtp")
+offset_left = -128.0
+offset_top = -128.0
+offset_right = 128.0
+offset_bottom = 128.0
+pivot_offset = Vector2(128, 128)
+localize_numeral_system = false
+script = ExtResource("12_5cx46")
+viewport_to_copy = NodePath("../portal_viewport")
+cam_to_copy = NodePath("../portal_viewport/portal_sub/Node2D/port_cam2")
+own_cam = NodePath("portal_sub/Node2D/port_copycam")
+
+[node name="portal_sub" type="SubViewport" parent="abilities/portal_pair/portal2/portal_viewport2"]
+handle_input_locally = false
+canvas_cull_mask = 4294967289
+size = Vector2i(256, 256)
+render_target_update_mode = 4
+
+[node name="Node2D" type="Node2D" parent="abilities/portal_pair/portal2/portal_viewport2/portal_sub"]
+top_level = true
+
+[node name="port_copycam" type="Camera2D" parent="abilities/portal_pair/portal2/portal_viewport2/portal_sub/Node2D"]
+top_level = true
+ignore_rotation = false
+
+[node name="CanvasLayer" type="CanvasLayer" parent="abilities/portal_pair/portal2/portal_viewport2/portal_sub"]
+
+[node name="pp1" parent="abilities/portal_pair/portal2/portal_viewport2/portal_sub/CanvasLayer" instance=ExtResource("12_hgduy")]
+
+[node name="pp2" parent="abilities/portal_pair/portal2/portal_viewport2/portal_sub/CanvasLayer" instance=ExtResource("12_hgduy")]
+modulate = Color(1, 0, 1, 0.435294)
+visibility_layer = 2
+
+[node name="teleport_timer" type="Timer" parent="abilities/portal_pair"]
+wait_time = 0.1
+one_shot = true
+
+[node name="RayCast2D" type="RayCast2D" parent="abilities/portal_pair"]
+
+[node name="ability_timer" type="Timer" parent="."]
+wait_time = 0.1
+one_shot = true
+
+[node name="Line2D" type="Line2D" parent="."]
+top_level = true
+texture_filter = 1
+texture_repeat = 2
+gradient = SubResource("Gradient_jr8bs")
+antialiased = true
+
+[node name="laser_blast" type="Sprite2D" parent="Line2D"]
+z_index = 10
+texture_filter = 1
+position = Vector2(242.482, -92.3725)
+rotation = -0.00565429
+scale = Vector2(8, 8)
+texture = SubResource("GradientTexture2D_ipos2")
+
+[node name="laser_blast2" type="Sprite2D" parent="Line2D"]
+z_index = 10
+position = Vector2(395.943, -11.2389)
+rotation = -0.00565429
+scale = Vector2(8, 8)
+texture = SubResource("GradientTexture2D_ipos2")
+
+[node name="portal_laser_line" type="Line2D" parent="."]
+top_level = true
+texture_filter = 1
+texture_repeat = 2
+rotation = 0.00565429
+points = PackedVector2Array(0, 0, 0, 0)
+width = 125.0
+gradient = SubResource("Gradient_6xec6")
+texture = ExtResource("21_wlcsn")
+texture_mode = 1
+antialiased = true
+
+[node name="Node2D" type="Node2D" parent="."]
+position = Vector2(0, -64)
+
+[node name="mini_gun" type="Sprite2D" parent="Node2D"]
+texture_filter = 1
+texture_repeat = 1
+material = SubResource("ShaderMaterial_ucg6g")
+texture = ExtResource("18_dddbf")
+script = ExtResource("16_u23dt")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = 1
+texture_filter = 1
+scale = Vector2(8, 8)
+texture = ExtResource("13_3vkd4")
+script = ExtResource("12_e3pnv")
+texture_90 = ExtResource("13_3vkd4")
+texture_45 = ExtResource("14_r2q27")
+
+[node name="Player_legs" type="Sprite2D" parent="Sprite2D"]
+z_index = -10
+texture_filter = 1
+texture = ExtResource("14_tn5wi")
+hframes = 2
+vframes = 4
+frame = 6
+region_enabled = true
+region_rect = Rect2(0, 0, 32, 64)
+
+[node name="RemoteTransform2D" type="RemoteTransform2D" parent="Sprite2D"]
+remote_path = NodePath("../../cam")
+update_rotation = false
+update_scale = false
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Sprite2D"]
+libraries = {
+"": SubResource("AnimationLibrary_1c0fr")
+}
+speed_scale = 0.0
+
+[node name="death_particle" type="GPUParticles2D" parent="."]
+visible = false
+texture_filter = 1
+process_material = SubResource("ParticleProcessMaterial_mvlyj")
+texture = SubResource("GradientTexture2D_18ha1")
+explosiveness = 1.0
+
+[node name="Footstep_manager" type="AudioStreamPlayer2D" parent="." node_paths=PackedStringArray("walk_anim")]
+volume_db = 10.0
+script = ExtResource("16_2v266")
+footsteps = SubResource("AudioStreamRandomizer_3bs8f")
+diff_curve = SubResource("Curve_5dtm6")
+anim_curve = SubResource("Curve_12a7k")
+walk_anim = NodePath("../Sprite2D/Player_legs")
+
+[node name="Timer" type="Timer" parent="Footstep_manager"]
+wait_time = 0.25
+autostart = true
+
+[node name="start_walking" type="Timer" parent="Footstep_manager"]
+wait_time = 0.1
+one_shot = true
+
+[node name="slepice" type="Sprite2D" parent="."]
+visible = false
+top_level = true
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("17_psayn")
+script = ExtResource("18_wy0hb")
+
+[node name="slejbl" type="Label" parent="."]
+visible = false
+modulate = Color(1, 1, 1, 0)
+offset_left = -69.0
+offset_top = -127.0
+offset_right = 61.0
+offset_bottom = -104.0
+text = "Slepice activated"
+
+[node name="BOT" type="NavigationAgent2D" parent="."]
+script = ExtResource("19_e6pv1")
+
+[node name="cam" type="Camera2D" parent="."]
+scale = Vector2(8, 8)
+ignore_rotation = false
+zoom = Vector2(0.8, 0.8)
+position_smoothing_enabled = true
+position_smoothing_speed = 30.0
+rotation_smoothing_speed = 20.0
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_cc2rj")
+}
+
+[node name="laser_sound" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("25_vvmpj")
+volume_db = -5.0
+pitch_scale = 0.9
+
+[node name="portal_sound" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("29_rwo4y")
+volume_db = -5.0
+pitch_scale = 0.9
+
+[connection signal="body_entered" from="abilities/portal_pair/portal1" to="abilities/portal_pair" method="first_portal_enter"]
+[connection signal="body_entered" from="abilities/portal_pair/portal1/portal_enter/Area2D" to="abilities/portal_pair/portal1/portal_enter" method="player_enter"]
+[connection signal="body_exited" from="abilities/portal_pair/portal1/portal_enter/Area2D" to="abilities/portal_pair/portal1/portal_enter" method="player_exit"]
+[connection signal="body_entered" from="abilities/portal_pair/portal2" to="abilities/portal_pair" method="second_portal_enter"]
+[connection signal="body_entered" from="abilities/portal_pair/portal2/portal_enter/Area2D" to="abilities/portal_pair/portal2/portal_enter" method="player_enter"]
+[connection signal="body_exited" from="abilities/portal_pair/portal2/portal_enter/Area2D" to="abilities/portal_pair/portal2/portal_enter" method="player_exit"]
+[connection signal="timeout" from="Footstep_manager/Timer" to="Footstep_manager" method="_on_timer_timeout"]

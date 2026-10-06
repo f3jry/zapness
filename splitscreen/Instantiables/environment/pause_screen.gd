@@ -1,0 +1,56 @@
+extends Control
+
+var is_paused = false
+@export var cont_tex : Control
+@export var gradient : Control
+var anim_speed = 0.15
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void: 
+	visible = false
+	# first pause
+	
+	if GameManager.rounds_played < 1 and GameManager.new_game == false:
+		is_paused = true
+		$MarginContainer/Control/buttons/Resume.text = "begin"
+		$MarginContainer/Control/buttons/Label.visible = false
+		await get_tree().create_timer(0.1).timeout
+		call_deferred("update_pause")
+# toggle pause 
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause"):
+		if !$pause_cooldown.is_stopped(): return
+		is_paused = !is_paused
+		update_pause()
+func update_pause():
+	visible = is_paused
+	get_tree().paused = is_paused
+	if is_paused == true:
+			var new_tween = get_tree().create_tween()
+			new_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+			new_tween.set_trans(Tween.TRANS_QUINT)
+			cont_tex.scale = Vector2(1,0.8)
+			gradient.modulate = Color.TRANSPARENT
+			new_tween.parallel().tween_property(cont_tex,"scale",Vector2.ONE,anim_speed)
+			new_tween.parallel().tween_property(gradient,"modulate",Color.WHITE,anim_speed)
+	$pause_cooldown.start()
+	if is_paused == false: 
+		$MarginContainer/Control/buttons/Resume.text = "resume"
+		$MarginContainer/Control/buttons/Label.visible = true
+func quit() -> void:
+	print("pressed")
+	get_tree().quit()
+
+
+func _on_rate_pressed() -> void:
+	OS.shell_open("https://ironinblood.itch.io/zapness/rate")
+
+
+func _on_resume_pressed() -> void:
+	if !$pause_cooldown.is_stopped(): return
+	is_paused = false
+	update_pause()
+	
+
+
+func _on_online_pressed() -> void:
+	$"../LobbyUI".visible = true

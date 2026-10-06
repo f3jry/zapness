@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "william_baffin",
+			"path": "."
+		}
+	],
+	"settings": {
+		"godotTools.editorPath.godot4": "/home/iron/Desktop/godot/godot_4.5/Godot_v4.5-stable_linux.x86_64"
+	}
+}

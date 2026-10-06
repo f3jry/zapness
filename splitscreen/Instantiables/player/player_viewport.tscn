@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3 uid="uid://e06evn3e11sp"]
+
+[ext_resource type="Script" path="res://Scripts/Players/player_viewport.gd" id="1_dl36r"]
+[ext_resource type="PackedScene" uid="uid://cfkoa7pd8h7hf" path="res://Instantiables/player/player.tscn" id="2_cn33d"]
+
+[node name="Player_viewport" type="SubViewportContainer" node_paths=PackedStringArray("player", "viewport") groups=["viewport"]]
+script = ExtResource("1_dl36r")
+player = NodePath("sub2/P2")
+viewport = NodePath("sub2")
+
+[node name="sub2" type="SubViewport" parent="."]
+handle_input_locally = false
+audio_listener_enable_2d = true
+size = Vector2i(960, 1080)
+size_2d_override = Vector2i(960, 1080)
+size_2d_override_stretch = true
+render_target_update_mode = 4
+
+[node name="P2" parent="sub2" instance=ExtResource("2_cn33d")]
+player_index = 1
+
+[node name="dir_hole" parent="sub2/P2/abilities/portal_pair/portal1" index="3"]
+texture = null
+
+[node name="dir_hole" parent="sub2/P2/abilities/portal_pair/portal2" index="3"]
+texture = null
+
+[editable path="sub2/P2"]

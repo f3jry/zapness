@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3 uid="uid://dpx27dq2d5xg4"]
+
+[sub_resource type="Gradient" id="Gradient_u0bhs"]
+offsets = PackedFloat32Array(0.155779)
+colors = PackedColorArray(0.909804, 0.407843, 0, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_078k2"]
+gradient = SubResource("Gradient_u0bhs")
+width = 32
+height = 32
+
+[node name="player1" type="Sprite2D"]
+modulate = Color(1, 1, 1, 0.435294)
+position = Vector2(128, 128)
+scale = Vector2(8, 8)
+texture = SubResource("GradientTexture2D_078k2")
