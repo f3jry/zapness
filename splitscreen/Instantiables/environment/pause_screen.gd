@@ -69,11 +69,36 @@ func update_pause() -> void:
 
 func _is_in_discord() -> bool:
 	var dm = get_node_or_null("/root/DiscordManager")
-	return dm != null and dm.is_in_discord_call()
+	if dm != null and dm.is_in_discord_call():
+		return true
+	if OS.has_feature("web"):
+		var cid = str(JavaScriptBridge.eval("""
+			(function() {
+				if (window.GodotDiscord && window.GodotDiscord.channelId) return window.GodotDiscord.channelId;
+				try { return new URLSearchParams(window.location.search).get('channel_id') || ''; } catch(e) { return ''; }
+			})()
+		""", true))
+		if not cid.is_empty():
+			if dm:
+				dm.channel_id = cid
+				dm.is_ready = true
+			return true
+	return false
 
 func _get_call_room_id() -> String:
 	var dm = get_node_or_null("/root/DiscordManager")
-	return dm.get_call_room_id() if dm != null else ""
+	if dm != null and not dm.get_call_room_id().is_empty():
+		return dm.get_call_room_id()
+	if OS.has_feature("web"):
+		var cid = str(JavaScriptBridge.eval("""
+			(function() {
+				if (window.GodotDiscord && window.GodotDiscord.channelId) return window.GodotDiscord.channelId;
+				try { return new URLSearchParams(window.location.search).get('channel_id') || ''; } catch(e) { return ''; }
+			})()
+		""", true))
+		if not cid.is_empty():
+			return "call-" + cid
+	return ""
 
 func _update_menu_buttons() -> void:
 	# Active Match Pause state

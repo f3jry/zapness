@@ -44,6 +44,8 @@ func _ready() -> void:
 		push_warning("DiscordManager: Not on web platform — SDK disabled.")
 		return
 
+	# Immediately query channelId synchronously from JS/URL params
+	_check_initial_channel_id()
 	_setup_js_callbacks()
 	_call_js_init()
 
@@ -55,42 +57,60 @@ func _is_web_platform() -> bool:
 # Initialisation
 # ---------------------------------------------------------------------------
 
+func _check_initial_channel_id() -> void:
+	var cid = str(JavaScriptBridge.eval("""
+		(function() {
+			if (window.GodotDiscord && window.GodotDiscord.channelId) {
+				return window.GodotDiscord.channelId;
+			}
+			try {
+				var p = new URLSearchParams(window.location.search);
+				return p.get('channel_id') || '';
+			} catch(e) {
+				return '';
+			}
+		})()
+	""", true))
+	if not cid.is_empty():
+		channel_id = cid
+		is_ready = true
+		print("DiscordManager: Synchronously detected channel ID: ", channel_id)
+
+
 func _setup_js_callbacks() -> void:
 	_js_on_ready = JavaScriptBridge.create_callback(_on_js_ready)
 	_js_on_error = JavaScriptBridge.create_callback(_on_js_error)
 
-	JavaScriptBridge.eval("""
-		window._godotDiscordOnReady = %s;
-		window._godotDiscordOnError = %s;
-	""" % [
-		JavaScriptBridge.get_interface("_godotDiscordOnReady"),
-		JavaScriptBridge.get_interface("_godotDiscordOnError")
-	], true)
-
-	# Assign into the GodotDiscord object once it's loaded
-	JavaScriptBridge.eval("""
-		(function() {
-			function assignCallbacks() {
-				if (window.GodotDiscord) {
-					window.GodotDiscord.onReady  = window._godotDiscordOnReady;
-					window.GodotDiscord.onError  = window._godotDiscordOnError;
-				} else {
-					setTimeout(assignCallbacks, 100);
+	var window = JavaScriptBridge.get_interface("window")
+	if window:
+		window._godotDiscordOnReady = _js_on_ready
+		window._godotDiscordOnError = _js_on_error
+		JavaScriptBridge.eval("""
+			(function() {
+				function bind() {
+					if (window.GodotDiscord && window._godotDiscordOnReady) {
+						window.GodotDiscord.onReady = window._godotDiscordOnReady;
+						window.GodotDiscord.onError = window._godotDiscordOnError;
+						if (window.GodotDiscord.ready) {
+							window._godotDiscordOnReady();
+						}
+					} else {
+						setTimeout(bind, 50);
+					}
 				}
-			}
-			assignCallbacks();
-		})();
-	""", true)
+				bind();
+			})();
+		""", true)
 
 
 func _call_js_init() -> void:
 	JavaScriptBridge.eval("""
 		(function() {
 			function tryInit() {
-				if (window.GodotDiscord) {
+				if (window.GodotDiscord && typeof window.GodotDiscord.init === 'function') {
 					window.GodotDiscord.init('%s');
 				} else {
-					setTimeout(tryInit, 100);
+					setTimeout(tryInit, 50);
 				}
 			}
 			tryInit();
