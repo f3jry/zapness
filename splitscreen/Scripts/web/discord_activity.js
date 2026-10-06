@@ -1,7 +1,7 @@
 /**
  * @file discord_activity.js
  * @description JavaScript shim bridging Discord Embedded App SDK into Godot 4 web export.
- * Also provides call-wide lobby discovery via lightweight ntfy.sh pub/sub.
+ * Provides real-time call-wide lobby discovery via ntfy.sh WebSocket + HTTP fallback.
  *
  * Exposes window.GodotDiscord
  */
@@ -28,12 +28,14 @@
            initialChannelId.length > 0;
   }
 
-  // Active lobbies cache discovered in this channel
-  var _activeLobbies = [];
+  // Active lobbies cache discovered in this channel: Map<host_peer_id, LobbyInfo>
+  var _lobbiesMap = {};
   var _activeLobbiesJson = '[]';
   var _isHostingAnnouncement = false;
   var _hostAnnouncementTimer = null;
   var _hostInfo = null;
+  var _wsSubscription = null;
+  var _wsReconnectTimer = null;
 
   function getDefaultAvatarUrl(name) {
     var hash = 0;
@@ -42,6 +44,91 @@
       hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
     }
     return 'https://cdn.discordapp.com/embed/avatars/' + (hash % 6) + '.png';
+  }
+
+  function pruneAndSerializeLobbies() {
+    var now = Date.now();
+    var list = [];
+    for (var hostId in _lobbiesMap) {
+      var item = _lobbiesMap[hostId];
+      if (item && item.timestamp && (now - item.timestamp) < 20000) {
+        // Exclude own lobby if we are the host
+        if (_isHostingAnnouncement && _hostInfo && _hostInfo.host_peer_id === hostId) {
+          continue;
+        }
+        list.push(item);
+      } else {
+        delete _lobbiesMap[hostId];
+      }
+    }
+    _activeLobbiesJson = JSON.stringify(list);
+    return _activeLobbiesJson;
+  }
+
+  function connectDiscoveryWebSocket() {
+    var topic = GodotDiscord.getChannelTopic();
+    if (!topic || topic.length === 0) return;
+
+    if (_wsSubscription) {
+      try { _wsSubscription.close(); } catch(e) {}
+      _wsSubscription = null;
+    }
+
+    try {
+      var wsUrl = 'wss://ntfy.sh/' + encodeURIComponent(topic) + '/ws';
+      console.log('[Lobby] Subscribing to topic:', topic);
+      var ws = new WebSocket(wsUrl);
+      _wsSubscription = ws;
+
+      ws.onopen = function () {
+        console.log('[Lobby] WebSocket connected to', topic);
+        // On connection, also do an immediate cache poll fallback
+        GodotDiscord.fetchLobbies();
+      };
+
+      ws.onmessage = function (event) {
+        if (!event.data) return;
+        try {
+          var payload = JSON.parse(event.data);
+          if (payload.event === 'message' && payload.message) {
+            var data = JSON.parse(payload.message);
+            if (data && data.host_peer_id) {
+              if (data.action === 'closed') {
+                delete _lobbiesMap[data.host_peer_id];
+                console.log('[Lobby] Lobby closed by host:', data.host_peer_id);
+              } else {
+                _lobbiesMap[data.host_peer_id] = {
+                  host_peer_id: data.host_peer_id,
+                  username: data.username || 'Host',
+                  avatar: data.avatar || getDefaultAvatarUrl(data.username),
+                  timestamp: Date.now()
+                };
+                console.log('[Lobby] Live announcement received from:', data.username, data.host_peer_id);
+              }
+              pruneAndSerializeLobbies();
+            }
+          }
+        } catch (e) {
+          console.log('[Lobby] Error parsing WS event:', e && e.message ? e.message : e);
+        }
+      };
+
+      ws.onerror = function (e) {
+        console.log('[Lobby] WebSocket error, fallback to polling.');
+      };
+
+      ws.onclose = function () {
+        _wsSubscription = null;
+        if (!_wsReconnectTimer) {
+          _wsReconnectTimer = setTimeout(function () {
+            _wsReconnectTimer = null;
+            connectDiscoveryWebSocket();
+          }, 3000);
+        }
+      };
+    } catch (err) {
+      console.log('[Lobby] WebSocket creation failed:', err);
+    }
   }
 
   var GodotDiscord = {
@@ -122,6 +209,9 @@
           };
         }
 
+        // Connect discovery WebSocket to channel topic
+        connectDiscoveryWebSocket();
+
         GodotDiscord.ready = true;
         if (typeof GodotDiscord.onReady === 'function') {
           GodotDiscord.onReady();
@@ -184,7 +274,7 @@
     },
 
     // -------------------------------------------------------------------------
-    // Call-wide Lobby Discovery (via public ntfy.sh topic keyed to channel_id)
+    // Call-wide Lobby Discovery (via ntfy.sh with X-Cache: yes + WebSocket)
     // -------------------------------------------------------------------------
     getChannelTopic: function () {
       var cid = GodotDiscord.channelId || initialChannelId || 'global';
@@ -202,6 +292,8 @@
         avatar: av
       };
 
+      console.log('[Lobby] Starting host announcement for peer ID:', hostPeerId);
+
       var publish = function () {
         if (!_isHostingAnnouncement || !_hostInfo) return;
         var topic = GodotDiscord.getChannelTopic();
@@ -209,18 +301,22 @@
         fetch('https://ntfy.sh/' + encodeURIComponent(topic), {
           method: 'POST',
           body: JSON.stringify(payload),
-          headers: { 'Content-Type': 'application/json' }
+          headers: {
+            'X-Cache': 'yes',
+            'Content-Type': 'application/json'
+          }
         }).catch(function (e) {
-          console.log('[Lobby] Publish heartbeat failed:', e && e.message ? e.message : e);
+          console.log('[Lobby] Publish heartbeat error:', e && e.message ? e.message : e);
         });
       };
 
       publish();
       if (_hostAnnouncementTimer) clearInterval(_hostAnnouncementTimer);
-      _hostAnnouncementTimer = setInterval(publish, 5000);
+      _hostAnnouncementTimer = setInterval(publish, 3000);
     },
 
     stopHostingAnnouncement: function () {
+      console.log('[Lobby] Stopping host announcement');
       _isHostingAnnouncement = false;
       if (_hostAnnouncementTimer) {
         clearInterval(_hostAnnouncementTimer);
@@ -232,7 +328,10 @@
         fetch('https://ntfy.sh/' + encodeURIComponent(topic), {
           method: 'POST',
           body: JSON.stringify(payload),
-          headers: { 'Content-Type': 'application/json' }
+          headers: {
+            'X-Cache': 'yes',
+            'Content-Type': 'application/json'
+          }
         }).catch(function () {});
         _hostInfo = null;
       }
@@ -241,15 +340,16 @@
     fetchLobbies: async function () {
       var topic = GodotDiscord.getChannelTopic();
       try {
-        var res = await fetch('https://ntfy.sh/' + encodeURIComponent(topic) + '/json?poll=1&since=20s');
+        var res = await fetch('https://ntfy.sh/' + encodeURIComponent(topic) + '/json?poll=1&since=10m');
         if (!res.ok) {
-          _activeLobbies = [];
-          _activeLobbiesJson = '[]';
-          return '[]';
+          return pruneAndSerializeLobbies();
         }
         var text = await res.text();
+        if (!text || text.trim().length === 0) {
+          return pruneAndSerializeLobbies();
+        }
+
         var lines = text.trim().split('\n');
-        var lobbiesMap = {};
         var now = Date.now();
 
         for (var i = 0; i < lines.length; i++) {
@@ -260,13 +360,9 @@
               var data = JSON.parse(event.message);
               if (data && data.host_peer_id) {
                 if (data.action === 'closed') {
-                  delete lobbiesMap[data.host_peer_id];
+                  delete _lobbiesMap[data.host_peer_id];
                 } else if (data.timestamp && (now - data.timestamp) < 25000) {
-                  // If we are the host of this lobby, don't show it to ourselves
-                  if (_isHostingAnnouncement && _hostInfo && _hostInfo.host_peer_id === data.host_peer_id) {
-                    continue;
-                  }
-                  lobbiesMap[data.host_peer_id] = {
+                  _lobbiesMap[data.host_peer_id] = {
                     host_peer_id: data.host_peer_id,
                     username: data.username || 'Host',
                     avatar: data.avatar || getDefaultAvatarUrl(data.username),
@@ -278,23 +374,22 @@
           } catch (lineErr) {}
         }
 
-        var list = [];
-        for (var k in lobbiesMap) {
-          list.push(lobbiesMap[k]);
-        }
-        _activeLobbies = list;
-        _activeLobbiesJson = JSON.stringify(list);
-        return _activeLobbiesJson;
+        return pruneAndSerializeLobbies();
       } catch (e) {
-        return _activeLobbiesJson;
+        return pruneAndSerializeLobbies();
       }
     },
 
     getActiveLobbiesJson: function () {
-      return _activeLobbiesJson;
+      return pruneAndSerializeLobbies();
     }
   };
 
+  // If already in a Discord call on script evaluation, open discovery WebSocket immediately
+  if (initialChannelId.length > 0) {
+    connectDiscoveryWebSocket();
+  }
+
   window.GodotDiscord = GodotDiscord;
-  console.log('GodotDiscord shim loaded with lobby discovery support.');
+  console.log('GodotDiscord shim loaded with real-time discovery (WebSocket + cached poll).');
 })();

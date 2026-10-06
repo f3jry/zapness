@@ -59,7 +59,7 @@ func _setup_discord_lobby_ui() -> void:
 	
 	lobby_poll_timer = Timer.new()
 	lobby_poll_timer.name = "LobbyPollTimer"
-	lobby_poll_timer.wait_time = 3.0
+	lobby_poll_timer.wait_time = 1.5
 	lobby_poll_timer.autostart = false
 	lobby_poll_timer.timeout.connect(_on_lobby_poll_timer_timeout)
 	add_child(lobby_poll_timer)
@@ -129,7 +129,7 @@ func _poll_discord_lobbies() -> void:
 		return
 	var lobbies: Array = dm.fetch_lobbies()
 	active_lobbies = lobbies
-	_refresh_lobby_list_display()
+	_update_menu_buttons()
 
 func _clear_lobby_cards() -> void:
 	if not lobby_list_container:
