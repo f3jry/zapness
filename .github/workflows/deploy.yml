@@ -38,18 +38,27 @@ jobs:
 
       - name: Setup export templates
         run: |
-          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          # Copy custom nothreads template if present
-          cp Detected_profile_templates/*.zip ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/ 2>/dev/null || true
-          cp templates/*.zip ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/ 2>/dev/null || true
+          TEMPLATE_DIR=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$TEMPLATE_DIR"
+          if [ -d /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ]; then
+            cp -r /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable/* "$TEMPLATE_DIR/" || true
+          fi
+          if [ -f Detected_profile_templates/godot.web.template_release.wasm32.nothreads.zip ]; then
+            cp Detected_profile_templates/godot.web.template_release.wasm32.nothreads.zip "$TEMPLATE_DIR/web_nothreads_release.zip"
+            cp Detected_profile_templates/godot.web.template_release.wasm32.nothreads.zip "$TEMPLATE_DIR/web_nothreads_debug.zip"
+          fi
+          if [ -f templates/godot.web.template_release.wasm32.nothreads.zip ]; then
+            cp templates/godot.web.template_release.wasm32.nothreads.zip "$TEMPLATE_DIR/web_nothreads_release.zip"
+            cp templates/godot.web.template_release.wasm32.nothreads.zip "$TEMPLATE_DIR/web_nothreads_debug.zip"
+          fi
 
       - name: Create export output directory
         run: mkdir -p dist
 
       - name: Export project (Web / nothreads)
         run: |
-          cd ${PROJECT_PATH}
-          godot --headless --export-release "Web" ../dist/index.html
+          godot --headless --path ${PROJECT_PATH} --editor --quit || true
+          godot --headless --path ${PROJECT_PATH} --export-release "Web" $(pwd)/dist/index.html
         continue-on-error: false
 
       - name: Copy web scripts to dist

@@ -1,7 +1,7 @@
 extends Node2D
 
 @export var portal1 : Node2D
-@export var portal[1] : Node2D
+@export var portal2 : Node2D
 
 @export var inLaser : RayCast2D
 @export var outLaser : RayCast2D
