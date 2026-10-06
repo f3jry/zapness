@@ -336,9 +336,14 @@
         return;
       }
       try {
-        patchFn([{ prefix: '/.proxy/peer', target: '0.peerjs.com' }]);
+        patchFn([
+          { prefix: '/peer', target: '0.peerjs.com' },
+          { prefix: '/.proxy/peer', target: '0.peerjs.com' },
+          { prefix: '/peerjs', target: '0.peerjs.com' },
+          { prefix: '/.proxy/peerjs', target: '0.peerjs.com' }
+        ]);
         _urlMappingsPatched = true;
-        console.log('URL mappings patched for PeerJS proxy (/.proxy/peer -> 0.peerjs.com).');
+        console.log('URL mappings patched for PeerJS proxy (/peer and /.proxy/peer -> 0.peerjs.com).');
       } catch (err) {
         console.error('[GodotDiscord] patchUrlMappings error:', err);
       }

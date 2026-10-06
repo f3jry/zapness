@@ -11,7 +11,7 @@ window.GodotPeerJS = {
     myPeerId: null,
     isHost: false,
 
-    // Callbacks that Godot will set
+    lastError: null,
     onPeerOpen: null,
     onPeerConnected: null,
     onDataReceived: null,
@@ -25,6 +25,8 @@ window.GodotPeerJS = {
      */
     initialize: function (customId) {
         try {
+            this.lastError = null;
+
             // Clean up existing peer if any
             if (this.peer) {
                 this.peer.destroy();
@@ -72,13 +74,14 @@ window.GodotPeerJS = {
 
             this.peer.on('error', (err) => {
                 console.error('[PeerJS] Error:', err.type, err.message);
+                this.lastError = err.type + ': ' + err.message;
                 if (err.type === 'peer-unavailable') {
                     if (window.GodotDiscord && typeof window.GodotDiscord.onLobbyUnavailable === 'function') {
                         window.GodotDiscord.onLobbyUnavailable();
                     }
                 }
                 if (this.onError) {
-                    this.onError(err.type + ': ' + err.message);
+                    this.onError(this.lastError);
                 }
             });
 
@@ -93,8 +96,9 @@ window.GodotPeerJS = {
             return true;
         } catch (e) {
             console.error('[PeerJS] Initialize error:', e);
+            this.lastError = 'Initialize failed: ' + e.message;
             if (this.onError) {
-                this.onError('Initialize failed: ' + e.message);
+                this.onError(this.lastError);
             }
             return false;
         }

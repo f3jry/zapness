@@ -46,6 +46,12 @@ func _ready() -> void:
 		if dm.has_signal("lobbies_updated"):
 			dm.lobbies_updated.connect(_on_discord_lobbies_updated)
 	
+	if NetworkManager.peerjs_bridge:
+		NetworkManager.peerjs_bridge.peer_opened.connect(func(_id): _update_menu_buttons())
+		NetworkManager.peerjs_bridge.error_occurred.connect(func(_err): _update_menu_buttons())
+		if OS.has_feature("web") and NetworkManager.peerjs_bridge.my_peer_id.is_empty():
+			NetworkManager.peerjs_bridge.initialize("")
+	
 	# Initial boot into menu
 	if GameManager.rounds_played < 1 and GameManager.new_game == false:
 		is_paused = true
@@ -159,6 +165,8 @@ func _update_debug_display() -> void:
 	var peer_id = ""
 	if NetworkManager.peerjs_bridge and not NetworkManager.peerjs_bridge.my_peer_id.is_empty():
 		peer_id = NetworkManager.peerjs_bridge.my_peer_id
+	elif NetworkManager.peerjs_bridge and not NetworkManager.peerjs_bridge.last_error.is_empty():
+		peer_id = "ERR: " + NetworkManager.peerjs_bridge.last_error.left(25)
 	else:
 		peer_id = "connecting..."
 	var role = "Host" if is_hosting_online else ("Client" if is_connecting_online else "Menu")

@@ -11,6 +11,8 @@ signal error_occurred(error_message: String)
 
 ## Our local peer ID assigned by PeerJS
 var my_peer_id: String = ""
+## Most recent error message from PeerJS
+var last_error: String = ""
 ## Whether we're the host of the session
 var is_host: bool = false
 ## Whether PeerJS is initialized and ready
@@ -202,6 +204,7 @@ func _on_js_peer_open(args: Array) -> void:
 	if args.size() > 0:
 		my_peer_id = str(args[0])
 		is_ready = true
+		last_error = ""
 		print("PeerJSBridge: Peer opened with ID: " + my_peer_id)
 		peer_opened.emit(my_peer_id)
 
@@ -240,5 +243,6 @@ func _on_js_peer_disconnected(args: Array) -> void:
 func _on_js_error(args: Array) -> void:
 	if args.size() > 0:
 		var error_msg = str(args[0])
+		last_error = error_msg
 		push_error("PeerJSBridge: Error - " + error_msg)
 		error_occurred.emit(error_msg)
