@@ -215,40 +215,47 @@ theme_override_constants/separation = 32
 
 [node name="Label" type="Label" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 80
+theme_override_font_sizes/font_size = 56
 text = "Game is paused"
 horizontal_alignment = 1
+
+[node name="LobbyCodeInput" type="LineEdit" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
+process_mode = 3
+visible = false
+layout_mode = 2
+theme = SubResource("Theme_f4dpo")
+theme_override_font_sizes/font_size = 48
+placeholder_text = "Enter Room Code..."
+alignment = 1
+caret_blink = true
 
 [node name="Resume" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
 process_mode = 3
 layout_mode = 2
 theme = SubResource("Theme_f4dpo")
-theme_override_font_sizes/font_size = 80
+theme_override_font_sizes/font_size = 64
 text = "Resume"
 
 [node name="online" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
 process_mode = 3
 layout_mode = 2
 theme = SubResource("Theme_f4dpo")
-theme_override_font_sizes/font_size = 80
-text = "online
-"
+theme_override_font_sizes/font_size = 64
+text = "online"
 
 [node name="Rate" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
 process_mode = 3
 layout_mode = 2
 theme = SubResource("Theme_f4dpo")
-theme_override_font_sizes/font_size = 80
-text = "Rate
-"
+theme_override_font_sizes/font_size = 64
+text = "Rate"
 
 [node name="Quit" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
 process_mode = 3
 layout_mode = 2
 theme = SubResource("Theme_f4dpo")
-theme_override_font_sizes/font_size = 80
-text = "Quit
-"
+theme_override_font_sizes/font_size = 64
+text = "Quit"
 
 [node name="pause_cooldown" type="Timer" parent="CanvasLayer/pause_screen"]
 wait_time = 0.35

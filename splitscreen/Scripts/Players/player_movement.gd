@@ -26,10 +26,23 @@ func _ready() -> void:
 	$Line2D.modulate = Color.TRANSPARENT
 	
 	# Setup multiplayer authority if in online mode
+	NetworkManager.player_connected.connect(_on_network_player_connected)
+	NetworkManager.connected_to_server.connect(_on_network_connected_to_server)
+	_update_multiplayer_authority()
+
+func _on_network_player_connected(_peer_id: int) -> void:
+	_update_multiplayer_authority()
+
+func _on_network_connected_to_server() -> void:
+	_update_multiplayer_authority()
+
+func _update_multiplayer_authority() -> void:
 	if NetworkManager.is_online():
 		is_local_player = _is_owned_by_local_peer()
 		if is_local_player:
 			set_multiplayer_authority(multiplayer.get_unique_id())
+	else:
+		is_local_player = true
 
 func _is_owned_by_local_peer() -> bool:
 	# In online mode, player_index 1 belongs to host, player_index 2 to client
