@@ -293,3 +293,16 @@ func fetch_lobbies() -> Array:
 	if json.parse(json_str) == OK and json.get_data() is Array:
 		return json.get_data()
 	return []
+
+
+## Probe the call's host lobby via PeerJS and fallback
+func probe_call_lobby() -> void:
+	if not _is_web_platform() or not is_ready:
+		return
+	JavaScriptBridge.eval("""
+		(function() {
+			if (window.GodotDiscord && typeof window.GodotDiscord.probeCallLobby === 'function') {
+				window.GodotDiscord.probeCallLobby();
+			}
+		})();
+	""", true)

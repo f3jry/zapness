@@ -336,9 +336,9 @@
         return;
       }
       try {
-        patchFn([{ prefix: '/peer', target: '0.peerjs.com' }]);
+        patchFn([{ prefix: '/.proxy/peer', target: '0.peerjs.com' }]);
         _urlMappingsPatched = true;
-        console.log('URL mappings patched for PeerJS proxy (/peer -> 0.peerjs.com).');
+        console.log('URL mappings patched for PeerJS proxy (/.proxy/peer -> 0.peerjs.com).');
       } catch (err) {
         console.error('[GodotDiscord] patchUrlMappings error:', err);
       }
@@ -449,6 +449,65 @@
 
     getActiveLobbiesJson: function () {
       return pruneAndSerializeLobbies();
+    },
+
+    probeCallLobby: function () {
+      if (_isHostingAnnouncement) return;
+      var callId = GodotDiscord.getCallId();
+      if (!callId || callId.length === 0) return;
+      var targetPeerId = 'zapness-' + callId;
+
+      // Check ntfy as fallback
+      GodotDiscord.fetchLobbies();
+
+      if (window.GodotPeerJS) {
+        if (!window.GodotPeerJS.peer || window.GodotPeerJS.peer.destroyed) {
+          window.GodotPeerJS.initialize('');
+          return;
+        }
+        if (!window.GodotPeerJS.myPeerId) return;
+
+        var conn = window.GodotPeerJS.connections[targetPeerId];
+        if (conn && conn.open) {
+          if (_lobbiesMap[targetPeerId]) {
+            _lobbiesMap[targetPeerId].timestamp = Date.now();
+          }
+          return;
+        }
+
+        window.GodotPeerJS.connectToPeer(targetPeerId);
+      }
+    },
+
+    onLobbyInfoReceived: function (info) {
+      if (!info || !info.host_peer_id) return;
+      var uname = info.username || 'Host';
+      var av = info.avatar || getDefaultAvatarUrl(uname);
+      _lobbiesMap[info.host_peer_id] = {
+        host_peer_id: info.host_peer_id,
+        username: uname,
+        avatar: av,
+        timestamp: Date.now()
+      };
+      console.log('[Lobby] Discovered active lobby via PeerJS:', uname, info.host_peer_id);
+      notifyLobbiesChanged();
+    },
+
+    onLobbyClosed: function (peerId) {
+      if (peerId && _lobbiesMap[peerId]) {
+        delete _lobbiesMap[peerId];
+        console.log('[Lobby] PeerJS lobby closed:', peerId);
+        notifyLobbiesChanged();
+      }
+    },
+
+    onLobbyUnavailable: function () {
+      var callId = GodotDiscord.getCallId();
+      var targetPeerId = 'zapness-' + callId;
+      if (_lobbiesMap[targetPeerId]) {
+        delete _lobbiesMap[targetPeerId];
+        notifyLobbiesChanged();
+      }
     }
   };
 

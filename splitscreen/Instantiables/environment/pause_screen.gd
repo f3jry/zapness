@@ -24,6 +24,7 @@ var lobby_poll_timer: Timer = null
 var lobby_list_container: VBoxContainer = null
 var active_lobbies: Array = []
 var avatar_cache: Dictionary = {} # url -> ImageTexture
+var debug_label: Label = null
 
 func _ready() -> void:
 	visible = false
@@ -67,6 +68,14 @@ func _setup_discord_lobby_ui() -> void:
 	lobby_poll_timer.autostart = false
 	lobby_poll_timer.timeout.connect(_on_lobby_poll_timer_timeout)
 	add_child(lobby_poll_timer)
+	
+	# Subtle on-screen status/debug label for in-call diagnostics
+	debug_label = Label.new()
+	debug_label.name = "DiscordDebugLabel"
+	debug_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	debug_label.add_theme_font_size_override("font_size", 22)
+	debug_label.modulate = Color(0.6, 0.7, 0.8, 0.7)
+	buttons_container.add_child(debug_label)
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
@@ -137,9 +146,28 @@ func _poll_discord_lobbies() -> void:
 	var dm = get_node_or_null("/root/DiscordManager")
 	if not dm:
 		return
+	dm.probe_call_lobby()
 	var lobbies: Array = dm.fetch_lobbies()
 	active_lobbies = lobbies
 	_update_menu_buttons()
+
+func _update_debug_display() -> void:
+	if not debug_label or not is_instance_valid(debug_label):
+		return
+	var dm = get_node_or_null("/root/DiscordManager")
+	var call_id = dm.get_call_id() if dm else ""
+	var peer_id = ""
+	if NetworkManager.peerjs_bridge and not NetworkManager.peerjs_bridge.my_peer_id.is_empty():
+		peer_id = NetworkManager.peerjs_bridge.my_peer_id
+	else:
+		peer_id = "connecting..."
+	var role = "Host" if is_hosting_online else ("Client" if is_connecting_online else "Menu")
+	debug_label.text = "[Call: %s | Role: %s | Peer: %s | Games: %d]" % [
+		call_id if not call_id.is_empty() else "local",
+		role,
+		peer_id,
+		active_lobbies.size()
+	]
 
 var _last_rendered_lobbies: Array = []
 
@@ -270,6 +298,8 @@ func _join_selected_lobby(host_id: String, host_name: String) -> void:
 		_update_menu_buttons()
 
 func _update_menu_buttons() -> void:
+	_update_debug_display()
+	
 	# Active Match Pause state
 	if has_started_match:
 		_clear_lobby_cards()
@@ -410,7 +440,14 @@ func _on_resume_pressed() -> void:
 	if _is_in_discord():
 		is_hosting_online = true
 		_update_menu_buttons()
-		var err = NetworkManager.host_game("")
+		var call_id = ""
+		var dm = get_node_or_null("/root/DiscordManager")
+		if dm:
+			call_id = dm.get_call_id()
+		var custom_id = ""
+		if not call_id.is_empty():
+			custom_id = "zapness-" + call_id
+		var err = NetworkManager.host_game(custom_id)
 		if err != OK:
 			is_hosting_online = false
 			status_label.text = "Failed to create game!"
