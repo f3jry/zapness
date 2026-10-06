@@ -41,12 +41,8 @@ window.GodotPeerJS = {
                 }
             };
 
-            // If running inside Discord Activity, route signaling through Discord proxy
+            // If running inside Discord Activity, ensure URL mappings are patched
             if (window.GodotDiscord && typeof window.GodotDiscord.isRunningInDiscord === 'function' && window.GodotDiscord.isRunningInDiscord()) {
-                peerOptions.host = window.location.hostname;
-                peerOptions.port = 443;
-                peerOptions.path = '/.proxy/peer';
-                peerOptions.secure = true;
                 if (typeof window.GodotDiscord.patchUrlMappings === 'function') {
                     window.GodotDiscord.patchUrlMappings();
                 }

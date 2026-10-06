@@ -302,9 +302,9 @@
       }
       try {
         GodotDiscord.sdk.patchUrlMappings([
-          { prefix: '/.proxy/peer', target: 'https://0.peerjs.com' },
+          { prefix: '/peer', target: '0.peerjs.com' },
         ]);
-        console.log('URL mappings patched for PeerJS proxy.');
+        console.log('URL mappings patched for PeerJS proxy (/peer -> 0.peerjs.com).');
       } catch (err) {
         var message = err && err.message ? err.message : String(err);
         console.error('[GodotDiscord] patchUrlMappings error:', message);

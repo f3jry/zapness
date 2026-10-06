@@ -33,8 +33,8 @@ Discord client (iframe)
    - **Prefix:** `/`
    - **Target:** your GitHub Pages URL (e.g. `https://yourusername.github.io/zapness`)
 4. Under **URL Mappings**, also add the PeerJS proxy mapping:
-   - **Prefix:** `/.proxy/peer`
-   - **Target:** `https://0.peerjs.com`
+   - **Prefix:** `/peer`
+   - **Target:** `0.peerjs.com`
 
 > [!IMPORTANT]
 > The URL mappings tell Discord which external URLs to proxy through `discordsays.com`.
