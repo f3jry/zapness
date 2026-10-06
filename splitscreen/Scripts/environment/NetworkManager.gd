@@ -185,6 +185,9 @@ func _on_peerjs_opened(my_peer_id: String) -> void:
 	print("PeerJS opened. Lobby ID: " + my_peer_id)
 	
 	if peerjs_bridge and peerjs_bridge.is_host:
+		var dm = get_node_or_null("/root/DiscordManager")
+		if dm and dm.is_in_discord_call():
+			dm.start_hosting_announcement(my_peer_id)
 		server_started.emit()
 		lobby_created.emit(my_peer_id)
 	else:
@@ -308,6 +311,9 @@ func _on_peerjs_error(error_message: String) -> void:
 
 ## Disconnect from the current game
 func disconnect_game() -> void:
+	var dm = get_node_or_null("/root/DiscordManager")
+	if dm:
+		dm.stop_hosting_announcement()
 	if rtc_peer:
 		rtc_peer.close()
 		rtc_peer = null

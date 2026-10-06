@@ -179,3 +179,48 @@ func get_call_room_id() -> String:
 	if not channel_id.is_empty():
 		return "call-" + channel_id
 	return ""
+
+## Start announcing this host's lobby to the channel via ntfy
+func start_hosting_announcement(host_peer_id: String) -> void:
+	if not _is_web_platform():
+		return
+	var uname = current_user.get("username", "Host")
+	var av = current_user.get("avatar", "")
+	JavaScriptBridge.eval("""
+		(function() {
+			if (window.GodotDiscord && window.GodotDiscord.startHostingAnnouncement) {
+				window.GodotDiscord.startHostingAnnouncement(%s, %s, %s);
+			}
+		})();
+	""" % [JSON.stringify(host_peer_id), JSON.stringify(uname), JSON.stringify(av)], true)
+
+## Stop announcing this host's lobby
+func stop_hosting_announcement() -> void:
+	if not _is_web_platform():
+		return
+	JavaScriptBridge.eval("""
+		(function() {
+			if (window.GodotDiscord && window.GodotDiscord.stopHostingAnnouncement) {
+				window.GodotDiscord.stopHostingAnnouncement();
+			}
+		})();
+	""", true)
+
+## Trigger lobby fetch and return array of active lobby dictionaries
+func fetch_lobbies() -> Array:
+	if not _is_web_platform():
+		return []
+	var json_str = str(JavaScriptBridge.eval("""
+		(function() {
+			if (window.GodotDiscord && window.GodotDiscord.fetchLobbies) {
+				window.GodotDiscord.fetchLobbies();
+				return window.GodotDiscord.getActiveLobbiesJson() || '[]';
+			}
+			return '[]';
+		})();
+	""", true))
+	var json = JSON.new()
+	if json.parse(json_str) == OK and json.get_data() is Array:
+		return json.get_data()
+	return []
+
