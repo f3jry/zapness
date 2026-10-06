@@ -16,6 +16,11 @@
     _originalConsoleLog.apply(console, args);
   };
 
+  // Expose DiscordSDK on window if bundled under DiscordModule
+  if (typeof window.DiscordSDK === 'undefined' && window.DiscordModule && typeof window.DiscordModule.DiscordSDK === 'function') {
+    window.DiscordSDK = window.DiscordModule.DiscordSDK;
+  }
+
   var urlParams = new URLSearchParams(window.location.search);
   var initialChannelId = urlParams.get('channel_id') || '';
   var initialInstanceId = urlParams.get('instance_id') || '';
@@ -25,7 +30,9 @@
     var hostname = window.location.hostname || '';
     return hostname.indexOf('discordsays.com') !== -1 ||
            hostname.indexOf('discord.com') !== -1 ||
-           initialChannelId.length > 0;
+           initialChannelId.length > 0 ||
+           initialInstanceId.length > 0 ||
+           urlParams.get('frame_id') !== null;
   }
 
   // Active lobbies cache discovered in this channel: Map<host_peer_id, LobbyInfo>
@@ -36,6 +43,7 @@
   var _hostInfo = null;
   var _wsSubscription = null;
   var _wsReconnectTimer = null;
+  var _urlMappingsPatched = false;
 
   function getDefaultAvatarUrl(name) {
     var hash = 0;
@@ -51,7 +59,7 @@
     var list = [];
     for (var hostId in _lobbiesMap) {
       var item = _lobbiesMap[hostId];
-      if (item && item.timestamp && (now - item.timestamp) < 20000) {
+      if (item && item.timestamp && (now - item.timestamp) < 15000) {
         // Exclude own lobby if we are the host
         if (_isHostingAnnouncement && _hostInfo && _hostInfo.host_peer_id === hostId) {
           continue;
@@ -65,6 +73,15 @@
     return _activeLobbiesJson;
   }
 
+  function notifyLobbiesChanged() {
+    pruneAndSerializeLobbies();
+    if (typeof window._godotDiscordOnLobbiesChanged === 'function') {
+      try {
+        window._godotDiscordOnLobbiesChanged();
+      } catch (e) {}
+    }
+  }
+
   function connectDiscoveryWebSocket() {
     var topic = GodotDiscord.getChannelTopic();
     if (!topic || topic.length === 0) return;
@@ -76,13 +93,13 @@
 
     try {
       var wsUrl = 'wss://ntfy.sh/' + encodeURIComponent(topic) + '/ws';
-      console.log('[Lobby] Subscribing to topic:', topic);
+      console.log('[Lobby] Subscribing WebSocket to topic:', topic);
       var ws = new WebSocket(wsUrl);
       _wsSubscription = ws;
 
       ws.onopen = function () {
         console.log('[Lobby] WebSocket connected to', topic);
-        // On connection, also do an immediate cache poll fallback
+        // On connection, also do an immediate HTTP cache poll fallback
         GodotDiscord.fetchLobbies();
       };
 
@@ -105,7 +122,7 @@
                 };
                 console.log('[Lobby] Live announcement received from:', data.username, data.host_peer_id);
               }
-              pruneAndSerializeLobbies();
+              notifyLobbiesChanged();
             }
           }
         } catch (e) {
@@ -113,7 +130,7 @@
         }
       };
 
-      ws.onerror = function (e) {
+      ws.onerror = function () {
         console.log('[Lobby] WebSocket error, fallback to polling.');
       };
 
@@ -133,68 +150,113 @@
 
   var GodotDiscord = {
     sdk: null,
-    ready: initialChannelId.length > 0,
+    ready: false,
     currentUser: null,
     channelId: initialChannelId,
     guildId: initialGuildId,
     instanceId: initialInstanceId,
     onReady: null,
     onError: null,
+    onLobbiesChanged: null,
+
+    getCallId: function () {
+      if (GodotDiscord.channelId && GodotDiscord.channelId.length > 0) {
+        return GodotDiscord.channelId;
+      }
+      if (GodotDiscord.instanceId && GodotDiscord.instanceId.length > 0) {
+        return GodotDiscord.instanceId;
+      }
+      if (initialChannelId && initialChannelId.length > 0) {
+        return initialChannelId;
+      }
+      if (initialInstanceId && initialInstanceId.length > 0) {
+        return initialInstanceId;
+      }
+      var p = new URLSearchParams(window.location.search);
+      return p.get('channel_id') || p.get('instance_id') || p.get('room') || '';
+    },
+
+    getChannelTopic: function () {
+      var callId = GodotDiscord.getCallId();
+      if (!callId || callId.length === 0) {
+        callId = 'global';
+      }
+      var safeId = callId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      return ('zapness-lobby-' + safeId).substring(0, 64);
+    },
 
     init: async function (clientId) {
       try {
         if (!isRunningInDiscord()) {
-          console.log('Not running inside Discord. Skipping SDK init.');
+          console.log('Running outside Discord. Skipping SDK handshake.');
           GodotDiscord.ready = true;
+          connectDiscoveryWebSocket();
           if (typeof GodotDiscord.onReady === 'function') {
             GodotDiscord.onReady();
           }
           return;
         }
 
-        console.log('Discord Activity detected. Channel:', GodotDiscord.channelId || initialChannelId);
+        console.log('Discord Activity detected. Initiating SDK...');
 
-        var SDKClass = null;
-        if (typeof window.DiscordSDK === 'function') {
-          SDKClass = window.DiscordSDK;
-        } else if (window.DiscordModule && typeof window.DiscordModule.DiscordSDK === 'function') {
+        var SDKClass = window.DiscordSDK;
+        if (!SDKClass && window.DiscordModule && typeof window.DiscordModule.DiscordSDK === 'function') {
           SDKClass = window.DiscordModule.DiscordSDK;
+          window.DiscordSDK = SDKClass;
         }
 
         if (SDKClass) {
           try {
             GodotDiscord.sdk = new SDKClass(clientId);
-            await GodotDiscord.sdk.ready();
-            GodotDiscord.channelId  = GodotDiscord.sdk.channelId  || GodotDiscord.channelId  || initialChannelId;
-            GodotDiscord.instanceId = GodotDiscord.sdk.instanceId || GodotDiscord.instanceId || initialInstanceId;
-            GodotDiscord.guildId    = GodotDiscord.sdk.guildId    || GodotDiscord.guildId    || initialGuildId;
-            console.log('DiscordSDK handshake complete. Channel:', GodotDiscord.channelId);
 
-            // Fetch connected participants if available
-            if (GodotDiscord.sdk.commands && typeof GodotDiscord.sdk.commands.getInstanceConnectedParticipants === 'function') {
+            // Listen for READY event to capture participant user info directly
+            if (GodotDiscord.sdk.eventBus) {
+              GodotDiscord.sdk.eventBus.once('READY', function (readyData) {
+                console.log('[Discord] Received READY event.');
+                if (readyData && readyData.user) {
+                  var u = readyData.user;
+                  var av = u.avatar ? ('https://cdn.discordapp.com/avatars/' + u.id + '/' + u.avatar + '.png?size=128') : getDefaultAvatarUrl(u.username);
+                  GodotDiscord.currentUser = {
+                    id: u.id,
+                    username: u.global_name || u.username || 'Player',
+                    avatar: av
+                  };
+                  console.log('[Discord] Identified user from READY:', GodotDiscord.currentUser.username);
+                }
+              });
+            }
+
+            // Handshake with Discord client with 4-second timeout guard
+            await Promise.race([
+              GodotDiscord.sdk.ready(),
+              new Promise(function (resolve) { setTimeout(resolve, 4000); })
+            ]);
+
+            GodotDiscord.channelId  = GodotDiscord.sdk.channelId  || initialChannelId  || GodotDiscord.channelId;
+            GodotDiscord.instanceId = GodotDiscord.sdk.instanceId || initialInstanceId || GodotDiscord.instanceId;
+            GodotDiscord.guildId    = GodotDiscord.sdk.guildId    || initialGuildId    || GodotDiscord.guildId;
+            console.log('DiscordSDK ready. Channel:', GodotDiscord.channelId, 'Instance:', GodotDiscord.instanceId);
+
+            // Also check getInstanceConnectedParticipants
+            if (!GodotDiscord.currentUser && GodotDiscord.sdk.commands && typeof GodotDiscord.sdk.commands.getInstanceConnectedParticipants === 'function') {
               try {
                 var pData = await GodotDiscord.sdk.commands.getInstanceConnectedParticipants();
                 if (pData && pData.participants && pData.participants.length > 0) {
                   var p = pData.participants[0];
-                  var avatarUrl = '';
-                  if (p.avatar) {
-                    avatarUrl = 'https://cdn.discordapp.com/avatars/' + p.id + '/' + p.avatar + '.png?size=128';
-                  } else {
-                    avatarUrl = getDefaultAvatarUrl(p.username || 'player');
-                  }
+                  var avatarUrl = p.avatar ? ('https://cdn.discordapp.com/avatars/' + p.id + '/' + p.avatar + '.png?size=128') : getDefaultAvatarUrl(p.username || 'player');
                   GodotDiscord.currentUser = {
                     id: p.id,
                     username: p.global_name || p.username || 'Player',
                     avatar: avatarUrl
                   };
-                  console.log('Identified participant:', GodotDiscord.currentUser.username);
+                  console.log('[Discord] Identified participant:', GodotDiscord.currentUser.username);
                 }
               } catch (pErr) {
-                console.log('getInstanceConnectedParticipants info:', pErr && pErr.message ? pErr.message : pErr);
+                console.log('[Discord] getInstanceConnectedParticipants non-fatal:', pErr && pErr.message ? pErr.message : pErr);
               }
             }
           } catch (sdkErr) {
-            console.log('DiscordSDK init non-fatal:', sdkErr && sdkErr.message ? sdkErr.message : sdkErr);
+            console.log('[Discord] DiscordSDK init non-fatal:', sdkErr && sdkErr.message ? sdkErr.message : sdkErr);
           }
         }
 
@@ -209,7 +271,7 @@
           };
         }
 
-        // Connect discovery WebSocket to channel topic
+        // Connect discovery WebSocket to resolved call topic
         connectDiscoveryWebSocket();
 
         GodotDiscord.ready = true;
@@ -220,6 +282,7 @@
         var message = err && err.message ? err.message : String(err);
         console.error('[GodotDiscord] init error:', message);
         GodotDiscord.ready = true;
+        connectDiscoveryWebSocket();
         if (typeof GodotDiscord.onReady === 'function') {
           GodotDiscord.onReady();
         }
@@ -241,6 +304,10 @@
       return GodotDiscord.channelId || '';
     },
 
+    getInstanceId: function () {
+      return GodotDiscord.instanceId || '';
+    },
+
     getGuildId: function () {
       return GodotDiscord.guildId || '';
     },
@@ -254,6 +321,9 @@
     },
 
     patchUrlMappings: function () {
+      if (_urlMappingsPatched) {
+        return;
+      }
       var patchFn = null;
       if (GodotDiscord.sdk && typeof GodotDiscord.sdk.patchUrlMappings === 'function') {
         patchFn = GodotDiscord.sdk.patchUrlMappings.bind(GodotDiscord.sdk);
@@ -267,6 +337,7 @@
       }
       try {
         patchFn([{ prefix: '/peer', target: '0.peerjs.com' }]);
+        _urlMappingsPatched = true;
         console.log('URL mappings patched for PeerJS proxy (/peer -> 0.peerjs.com).');
       } catch (err) {
         console.error('[GodotDiscord] patchUrlMappings error:', err);
@@ -276,11 +347,6 @@
     // -------------------------------------------------------------------------
     // Call-wide Lobby Discovery (via ntfy.sh with X-Cache: yes + WebSocket)
     // -------------------------------------------------------------------------
-    getChannelTopic: function () {
-      var cid = GodotDiscord.channelId || initialChannelId || 'global';
-      return 'zapness-lobby-' + cid;
-    },
-
     startHostingAnnouncement: function (hostPeerId, username, avatarUrl) {
       _isHostingAnnouncement = true;
       var uname = username || (GodotDiscord.currentUser ? GodotDiscord.currentUser.username : 'Host');
@@ -292,7 +358,7 @@
         avatar: av
       };
 
-      console.log('[Lobby] Starting host announcement for peer ID:', hostPeerId);
+      console.log('[Lobby] Starting host announcement for peer ID:', hostPeerId, 'on topic:', GodotDiscord.getChannelTopic());
 
       var publish = function () {
         if (!_isHostingAnnouncement || !_hostInfo) return;
@@ -361,12 +427,13 @@
               if (data && data.host_peer_id) {
                 if (data.action === 'closed') {
                   delete _lobbiesMap[data.host_peer_id];
-                } else if (data.timestamp && (now - data.timestamp) < 25000) {
+                } else {
+                  // Message from ntfy within the last 15s or fresh heartbeat
                   _lobbiesMap[data.host_peer_id] = {
                     host_peer_id: data.host_peer_id,
                     username: data.username || 'Host',
                     avatar: data.avatar || getDefaultAvatarUrl(data.username),
-                    timestamp: data.timestamp
+                    timestamp: now
                   };
                 }
               }
@@ -385,11 +452,9 @@
     }
   };
 
-  // If already in a Discord call on script evaluation, open discovery WebSocket immediately
-  if (initialChannelId.length > 0) {
-    connectDiscoveryWebSocket();
-  }
+  // Immediate WebSocket attempt on script load
+  connectDiscoveryWebSocket();
 
   window.GodotDiscord = GodotDiscord;
-  console.log('GodotDiscord shim loaded with real-time discovery (WebSocket + cached poll).');
+  console.log('GodotDiscord shim loaded with real-time discovery (WebSocket + cached poll). Topic:', GodotDiscord.getChannelTopic());
 })();

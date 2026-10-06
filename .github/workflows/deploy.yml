@@ -64,9 +64,7 @@ jobs:
       - name: Copy web scripts and static pages to dist
         run: |
           mkdir -p dist/Scripts/web
-          cp ${PROJECT_PATH}/Scripts/web/discord_sdk_bundle.js dist/Scripts/web/
-          cp ${PROJECT_PATH}/Scripts/web/peerjs_bridge.js dist/Scripts/web/
-          cp ${PROJECT_PATH}/Scripts/web/discord_activity.js dist/Scripts/web/
+          cp ${PROJECT_PATH}/Scripts/web/*.js dist/Scripts/web/
           cp pages/*.html dist/ 2>/dev/null || true
 
       - name: Add .nojekyll (required for GitHub Pages to serve WASM)

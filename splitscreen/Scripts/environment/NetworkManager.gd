@@ -186,7 +186,7 @@ func _on_peerjs_opened(my_peer_id: String) -> void:
 	
 	if peerjs_bridge and peerjs_bridge.is_host:
 		var dm = get_node_or_null("/root/DiscordManager")
-		if dm and dm.is_in_discord_call():
+		if dm and (dm.is_in_discord_call() or _is_web_platform()):
 			dm.start_hosting_announcement(my_peer_id)
 		server_started.emit()
 		lobby_created.emit(my_peer_id)

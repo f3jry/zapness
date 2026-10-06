@@ -32,6 +32,8 @@ func _ready() -> void:
 	NetworkManager.player_connected.connect(_on_player_connected)
 	NetworkManager.connection_failed.connect(_on_connection_failed)
 	NetworkManager.player_disconnected.connect(_on_player_disconnected)
+	NetworkManager.lobby_created.connect(_on_lobby_created)
+	NetworkManager.lobby_joined.connect(_on_lobby_joined)
 	
 	# Setup lobby list container and polling timer
 	_setup_discord_lobby_ui()
@@ -40,6 +42,8 @@ func _ready() -> void:
 		var dm = get_node("/root/DiscordManager")
 		if dm.has_signal("sdk_ready"):
 			dm.sdk_ready.connect(func(_u): _update_menu_buttons())
+		if dm.has_signal("lobbies_updated"):
+			dm.lobbies_updated.connect(_on_discord_lobbies_updated)
 	
 	# Initial boot into menu
 	if GameManager.rounds_played < 1 and GameManager.new_game == false:
@@ -102,22 +106,28 @@ func update_pause() -> void:
 	pause_cooldown.start()
 
 func _is_in_discord() -> bool:
+	if OS.has_feature("web"):
+		return true
 	var dm = get_node_or_null("/root/DiscordManager")
 	if dm != null and dm.is_in_discord_call():
 		return true
-	if OS.has_feature("web"):
-		var cid = str(JavaScriptBridge.eval("""
-			(function() {
-				if (window.GodotDiscord && window.GodotDiscord.channelId) return window.GodotDiscord.channelId;
-				try { return new URLSearchParams(window.location.search).get('channel_id') || ''; } catch(e) { return ''; }
-			})()
-		""", true))
-		if not cid.is_empty():
-			if dm:
-				dm.channel_id = cid
-				dm.is_ready = true
-			return true
 	return false
+
+func _on_discord_lobbies_updated(lobbies: Array) -> void:
+	if not is_paused or has_started_match or is_hosting_online or is_connecting_online:
+		return
+	active_lobbies = lobbies
+	_update_menu_buttons()
+
+func _on_lobby_created(_lobby_id: String) -> void:
+	if is_hosting_online:
+		status_label.text = "Hosting match! Waiting for friend in call..."
+		status_label.modulate = Color(1.0, 0.85, 0.3)
+
+func _on_lobby_joined(_lobby_id: String) -> void:
+	if is_connecting_online:
+		status_label.text = "Connected! Starting match..."
+		status_label.modulate = Color(0.4, 1.0, 0.5)
 
 func _on_lobby_poll_timer_timeout() -> void:
 	if is_paused and not has_started_match and _is_in_discord() and not is_hosting_online and not is_connecting_online:
@@ -131,6 +141,22 @@ func _poll_discord_lobbies() -> void:
 	active_lobbies = lobbies
 	_update_menu_buttons()
 
+var _last_rendered_lobbies: Array = []
+
+func _are_lobbies_equal(a: Array, b: Array) -> bool:
+	if a.size() != b.size():
+		return false
+	for i in range(a.size()):
+		var la = a[i]
+		var lb = b[i]
+		if not (la is Dictionary and lb is Dictionary):
+			return false
+		if la.get("host_peer_id", "") != lb.get("host_peer_id", ""):
+			return false
+		if la.get("username", "") != lb.get("username", ""):
+			return false
+	return true
+
 func _clear_lobby_cards() -> void:
 	if not lobby_list_container:
 		return
@@ -138,9 +164,16 @@ func _clear_lobby_cards() -> void:
 		child.queue_free()
 
 func _refresh_lobby_list_display() -> void:
-	_clear_lobby_cards()
 	if not _is_in_discord() or has_started_match or is_hosting_online or is_connecting_online:
+		_clear_lobby_cards()
+		_last_rendered_lobbies.clear()
 		return
+
+	if _are_lobbies_equal(active_lobbies, _last_rendered_lobbies):
+		return
+
+	_last_rendered_lobbies = active_lobbies.duplicate(true)
+	_clear_lobby_cards()
 
 	for lobby in active_lobbies:
 		var host_id: String = lobby.get("host_peer_id", "")
@@ -263,11 +296,9 @@ func _update_menu_buttons() -> void:
 	# Main Menu — Waiting for opponent state
 	if is_hosting_online:
 		_clear_lobby_cards()
+		_last_rendered_lobbies.clear()
 		status_label.visible = true
-		if _is_in_discord():
-			status_label.text = "Hosting match! Waiting for friend in call..."
-		else:
-			status_label.text = "Hosting! Code: " + NetworkManager.current_lobby_id
+		status_label.text = "Hosting match! Waiting for friend in call..."
 		status_label.modulate = Color(1.0, 0.85, 0.3)
 		code_input.visible = false
 		btn_resume.visible = true
@@ -279,6 +310,7 @@ func _update_menu_buttons() -> void:
 
 	if is_connecting_online:
 		_clear_lobby_cards()
+		_last_rendered_lobbies.clear()
 		status_label.visible = true
 		status_label.text = "Connecting to match..."
 		status_label.modulate = Color(1.0, 0.85, 0.3)
@@ -296,6 +328,8 @@ func _update_menu_buttons() -> void:
 		btn_quit.visible = false
 		
 		if active_lobbies.is_empty():
+			_clear_lobby_cards()
+			_last_rendered_lobbies.clear()
 			# No active lobbies: status, "Create Game", and "Practice" at the bottom
 			status_label.visible = true
 			status_label.text = "No active games in call"
@@ -309,7 +343,6 @@ func _update_menu_buttons() -> void:
 			btn_rate.visible = true
 			btn_rate.text = "Practice"
 		else:
-			# Active lobbies exist: show list, "Create Game", and "Practice" at bottom
 			status_label.visible = true
 			status_label.text = "Games in Call (" + str(active_lobbies.size()) + ")"
 			status_label.modulate = Color(0.4, 1.0, 0.5)
@@ -362,6 +395,8 @@ func _on_resume_pressed() -> void:
 		NetworkManager.disconnect_game()
 		is_hosting_online = false
 		is_connecting_online = false
+		_clear_lobby_cards()
+		_last_rendered_lobbies.clear()
 		_update_menu_buttons()
 		return
 	

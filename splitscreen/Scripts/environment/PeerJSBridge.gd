@@ -33,35 +33,55 @@ func _ready() -> void:
 func _is_web_platform() -> bool:
 	return OS.has_feature("web")
 
-## Set up JavaScript callbacks that PeerJS will call
 func _setup_js_callbacks() -> void:
 	if not _is_web_platform():
+		return
+	
+	var window = JavaScriptBridge.get_interface("window")
+	if not window:
 		return
 	
 	# Create callback for peer open event
 	var on_open = JavaScriptBridge.create_callback(_on_js_peer_open)
 	_js_callbacks.append(on_open)
-	JavaScriptBridge.eval("window.GodotPeerJS.onPeerOpen = " + str(on_open) + ";", true)
+	window._godotPeerOnOpen = on_open
 	
 	# Create callback for peer connected event
 	var on_connected = JavaScriptBridge.create_callback(_on_js_peer_connected)
 	_js_callbacks.append(on_connected)
-	JavaScriptBridge.eval("window.GodotPeerJS.onPeerConnected = " + str(on_connected) + ";", true)
+	window._godotPeerOnConnected = on_connected
 	
 	# Create callback for data received event
 	var on_data = JavaScriptBridge.create_callback(_on_js_data_received)
 	_js_callbacks.append(on_data)
-	JavaScriptBridge.eval("window.GodotPeerJS.onDataReceived = " + str(on_data) + ";", true)
+	window._godotPeerOnData = on_data
 	
 	# Create callback for peer disconnected event
 	var on_disconnected = JavaScriptBridge.create_callback(_on_js_peer_disconnected)
 	_js_callbacks.append(on_disconnected)
-	JavaScriptBridge.eval("window.GodotPeerJS.onPeerDisconnected = " + str(on_disconnected) + ";", true)
+	window._godotPeerOnDisconnected = on_disconnected
 	
 	# Create callback for error event
 	var on_error = JavaScriptBridge.create_callback(_on_js_error)
 	_js_callbacks.append(on_error)
-	JavaScriptBridge.eval("window.GodotPeerJS.onError = " + str(on_error) + ";", true)
+	window._godotPeerOnError = on_error
+	
+	JavaScriptBridge.eval("""
+		(function() {
+			function bind() {
+				if (window.GodotPeerJS) {
+					if (window._godotPeerOnOpen) window.GodotPeerJS.onPeerOpen = window._godotPeerOnOpen;
+					if (window._godotPeerOnConnected) window.GodotPeerJS.onPeerConnected = window._godotPeerOnConnected;
+					if (window._godotPeerOnData) window.GodotPeerJS.onDataReceived = window._godotPeerOnData;
+					if (window._godotPeerOnDisconnected) window.GodotPeerJS.onPeerDisconnected = window._godotPeerOnDisconnected;
+					if (window._godotPeerOnError) window.GodotPeerJS.onError = window._godotPeerOnError;
+				} else {
+					setTimeout(bind, 50);
+				}
+			}
+			bind();
+		})();
+	""", true)
 
 ## Initialize PeerJS connection
 ## @param custom_id: Optional custom peer ID (leave empty for random)
