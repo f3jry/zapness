@@ -11,7 +11,7 @@ window.GodotPeerJS = {
     myPeerId: null,
     isHost: false,
 
-    lastError: null,
+    // Callbacks that Godot will set
     onPeerOpen: null,
     onPeerConnected: null,
     onDataReceived: null,
@@ -25,8 +25,6 @@ window.GodotPeerJS = {
      */
     initialize: function (customId) {
         try {
-            this.lastError = null;
-
             // Clean up existing peer if any
             if (this.peer) {
                 this.peer.destroy();
@@ -43,24 +41,15 @@ window.GodotPeerJS = {
                 }
             };
 
-            // If running inside Discord Activity, ensure URL mappings are patched
-            if (window.GodotDiscord && typeof window.GodotDiscord.isRunningInDiscord === 'function' && window.GodotDiscord.isRunningInDiscord()) {
-                if (typeof window.GodotDiscord.patchUrlMappings === 'function') {
-                    window.GodotDiscord.patchUrlMappings();
-                }
-            }
-
             if (customId && customId.length > 0) {
-                this.isHost = true;
                 this.peer = new Peer(customId, peerOptions);
             } else {
-                this.isHost = false;
                 this.peer = new Peer(peerOptions);
             }
 
             // Set up event handlers
             this.peer.on('open', (id) => {
-                console.log('[PeerJS] Peer opened with ID:', id, 'isHost:', this.isHost);
+                console.log('[PeerJS] Peer opened with ID:', id);
                 this.myPeerId = id;
                 if (this.onPeerOpen) {
                     this.onPeerOpen(id);
@@ -74,14 +63,8 @@ window.GodotPeerJS = {
 
             this.peer.on('error', (err) => {
                 console.error('[PeerJS] Error:', err.type, err.message);
-                this.lastError = err.type + ': ' + err.message;
-                if (err.type === 'peer-unavailable') {
-                    if (window.GodotDiscord && typeof window.GodotDiscord.onLobbyUnavailable === 'function') {
-                        window.GodotDiscord.onLobbyUnavailable();
-                    }
-                }
                 if (this.onError) {
-                    this.onError(this.lastError);
+                    this.onError(err.type + ': ' + err.message);
                 }
             });
 
@@ -96,9 +79,8 @@ window.GodotPeerJS = {
             return true;
         } catch (e) {
             console.error('[PeerJS] Initialize error:', e);
-            this.lastError = 'Initialize failed: ' + e.message;
             if (this.onError) {
-                this.onError(this.lastError);
+                this.onError('Initialize failed: ' + e.message);
             }
             return false;
         }
@@ -114,11 +96,6 @@ window.GodotPeerJS = {
             if (!this.peer || this.peer.destroyed) {
                 console.error('[PeerJS] Peer not initialized');
                 return false;
-            }
-
-            if (this.connections[peerId] && this.connections[peerId].open) {
-                console.log('[PeerJS] Already connected to peer:', peerId);
-                return true;
             }
 
             console.log('[PeerJS] Connecting to peer:', peerId);
@@ -147,16 +124,6 @@ window.GodotPeerJS = {
 
         conn.on('open', () => {
             console.log('[PeerJS] Connection opened with:', conn.peer);
-            // If host, immediately send lobby info so the client can display our lobby card
-            if (this.isHost) {
-                var u = (window.GodotDiscord && window.GodotDiscord.currentUser) ? window.GodotDiscord.currentUser : { username: 'Host', avatar: '' };
-                conn.send({
-                    type: '__lobby_info__',
-                    username: u.username || 'Host',
-                    avatar: u.avatar || '',
-                    host_peer_id: this.myPeerId
-                });
-            }
             if (this.onPeerConnected) {
                 this.onPeerConnected(conn.peer);
             }
@@ -164,17 +131,6 @@ window.GodotPeerJS = {
 
         conn.on('data', (data) => {
             console.log('[PeerJS] Data received from', conn.peer, ':', data);
-            var obj = (typeof data === 'string') ? null : data;
-            if (!obj && typeof data === 'string') {
-                try { obj = JSON.parse(data); } catch(e) {}
-            }
-            if (obj && obj.type === '__lobby_info__') {
-                if (window.GodotDiscord && typeof window.GodotDiscord.onLobbyInfoReceived === 'function') {
-                    window.GodotDiscord.onLobbyInfoReceived(obj);
-                }
-                return;
-            }
-
             if (this.onDataReceived) {
                 // Convert to JSON string for Godot
                 const jsonData = typeof data === 'string' ? data : JSON.stringify(data);
@@ -184,9 +140,6 @@ window.GodotPeerJS = {
 
         conn.on('close', () => {
             console.log('[PeerJS] Connection closed with:', conn.peer);
-            if (window.GodotDiscord && typeof window.GodotDiscord.onLobbyClosed === 'function') {
-                window.GodotDiscord.onLobbyClosed(conn.peer);
-            }
             delete this.connections[conn.peer];
             if (this.onPeerDisconnected) {
                 this.onPeerDisconnected(conn.peer);

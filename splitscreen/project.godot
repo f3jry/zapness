@@ -22,9 +22,14 @@ config/icon="res://icon.png"
 
 InputManager="*res://Scripts/Players/Input_manager.gd"
 GameManager="*res://Scripts/environment/GameManager_score.gd"
-DiscordManager="*res://Scripts/environment/DiscordManager.gd"
-PeerJSBridge="*res://Scripts/environment/PeerJSBridge.gd"
 NetworkManager="*res://Scripts/environment/NetworkManager.gd"
+DiscordEM="*res://addons/discord_embedded_sdk/DiscordSDK.gd"
+
+[discord]
+
+; Discord Activity client id from the Developer Portal (required for the
+; Embedded App SDK handshake inside Discord; leave empty outside Discord).
+client_id="1556972180930166785"
 
 [display]
 

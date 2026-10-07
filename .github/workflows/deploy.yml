@@ -64,7 +64,7 @@ jobs:
       - name: Copy web scripts and static pages to dist
         run: |
           mkdir -p dist/Scripts/web
-          cp ${PROJECT_PATH}/Scripts/web/*.js dist/Scripts/web/
+          cp -r ${PROJECT_PATH}/Scripts/web/*.js dist/Scripts/web/ 2>/dev/null || true
           cp pages/*.html dist/ 2>/dev/null || true
 
       - name: Add .nojekyll (required for GitHub Pages to serve WASM)

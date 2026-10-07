@@ -1,0 +1,290 @@
+[gd_scene load_steps=16 format=3 uid="uid://d1f1es6vdfn16"]
+
+[ext_resource type="Script" path="res://Scripts/environment/GameManager.gd" id="1_rkrxm"]
+[ext_resource type="Script" path="res://Scripts/environment/CameraManager.gd" id="2_336re"]
+[ext_resource type="PackedScene" uid="uid://drns8y8uhcin3" path="res://Instantiables/environment/world.tscn" id="3_c5swp"]
+[ext_resource type="Texture2D" uid="uid://dfvo5kfs0d7qa" path="res://zapness_shaded.png" id="4_8njhs"]
+[ext_resource type="Script" path="res://Instantiables/environment/announcement.gd" id="4_50cwo"]
+[ext_resource type="Texture2D" uid="uid://ddkwseyyqfq5h" path="res://Textures/Player/enemy_tex_color.png" id="5_i424s"]
+[ext_resource type="PackedScene" uid="uid://e06evn3e11sp" path="res://Instantiables/player/player_viewport.tscn" id="5_vg1c6"]
+[ext_resource type="Texture2D" uid="uid://ncqn37dv1vn" path="res://Textures/Player/enemy_tex_color45.png" id="6_lmu34"]
+[ext_resource type="Script" path="res://Instantiables/environment/pause_screen.gd" id="7_wu8od"]
+[ext_resource type="Texture2D" uid="uid://cu8ijo6p6fv3s" path="res://Textures/UI/controls.png" id="8_uo2ql"]
+
+[sub_resource type="Gradient" id="Gradient_p6dbt"]
+interpolation_mode = 2
+offsets = PackedFloat32Array(0, 0.994737)
+colors = PackedColorArray(0, 0, 0, 1, 0, 0, 0, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_7n2n2"]
+gradient = SubResource("Gradient_p6dbt")
+width = 1
+height = 256
+fill_from = Vector2(1, 1)
+
+[sub_resource type="Gradient" id="Gradient_3bmqd"]
+interpolation_mode = 2
+offsets = PackedFloat32Array(0, 0.512563, 1)
+colors = PackedColorArray(0, 0, 0, 0.768627, 0.792157, 0.862745, 1, 0, 0, 0, 0, 0.768627)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_5gha5"]
+gradient = SubResource("Gradient_3bmqd")
+fill_from = Vector2(1, 1)
+
+[sub_resource type="Theme" id="Theme_f4dpo"]
+
+[node name="PlayerManager" type="Control" node_paths=PackedStringArray("world_parent", "p_")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_rkrxm")
+world_parent = NodePath("HBoxContainer/worldport")
+p_ = [NodePath("HBoxContainer/Player_viewport3/sub2/P2"), NodePath("HBoxContainer/Player_viewport/sub2/P2")]
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.111197, 0.111197, 0.111197, 1)
+
+[node name="CameraManager" type="Control" parent="."]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("2_336re")
+
+[node name="HBoxContainer" type="GridContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+columns = 2
+
+[node name="worldport" type="SubViewport" parent="HBoxContainer"]
+unique_name_in_owner = true
+
+[node name="level" parent="HBoxContainer/worldport" instance=ExtResource("3_c5swp")]
+
+[node name="Player_viewport3" parent="HBoxContainer" instance=ExtResource("5_vg1c6")]
+layout_mode = 2
+
+[node name="P2" parent="HBoxContainer/Player_viewport3/sub2" index="0"]
+position = Vector2(-1284, -1996)
+player_index = 2
+
+[node name="CollisionShape2D" parent="HBoxContainer/Player_viewport3/sub2/P2/abilities/portal_pair/portal1" index="0"]
+position = Vector2(-83.2, 0.000305176)
+
+[node name="CollisionShape2D2" parent="HBoxContainer/Player_viewport3/sub2/P2/abilities/portal_pair/portal2" index="0"]
+position = Vector2(-83.2, 0.000305176)
+
+[node name="Player_viewport" parent="HBoxContainer" instance=ExtResource("5_vg1c6")]
+layout_mode = 2
+
+[node name="P2" parent="HBoxContainer/Player_viewport/sub2" index="0"]
+position = Vector2(1889, -2703)
+
+[node name="CollisionShape2D" parent="HBoxContainer/Player_viewport/sub2/P2/abilities/portal_pair/portal1" index="0"]
+position = Vector2(-83.2, 0.000305176)
+
+[node name="CollisionShape2D2" parent="HBoxContainer/Player_viewport/sub2/P2/abilities/portal_pair/portal2" index="0"]
+position = Vector2(-83.2, 0.000305176)
+
+[node name="Sprite2D" parent="HBoxContainer/Player_viewport/sub2/P2" index="12"]
+texture_90 = ExtResource("5_i424s")
+texture_45 = ExtResource("6_lmu34")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+layer = 100
+
+[node name="pause_screen" type="Control" parent="CanvasLayer" node_paths=PackedStringArray("cont_tex", "gradient")]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("7_wu8od")
+cont_tex = NodePath("global_ui_margin/Control/controls")
+gradient = NodePath("background")
+
+[node name="background" type="TextureRect" parent="CanvasLayer/pause_screen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_7n2n2")
+
+[node name="global_ui_margin" type="MarginContainer" parent="CanvasLayer/pause_screen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 48
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 48
+
+[node name="Control" type="Control" parent="CanvasLayer/pause_screen/global_ui_margin"]
+layout_mode = 2
+
+[node name="controls" type="TextureRect" parent="CanvasLayer/pause_screen/global_ui_margin/Control"]
+texture_filter = 1
+custom_minimum_size = Vector2(0, 378.7)
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -356.0
+offset_right = 356.0
+offset_bottom = 378.7
+grow_horizontal = 2
+texture = ExtResource("8_uo2ql")
+
+[node name="Splash_text" type="TextureRect" parent="CanvasLayer/pause_screen/global_ui_margin/Control"]
+texture_filter = 1
+layout_mode = 1
+offset_right = 448.0
+offset_bottom = 128.0
+texture = ExtResource("4_8njhs")
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/pause_screen/global_ui_margin/Control/Splash_text"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = -16
+theme_override_constants/margin_top = -16
+theme_override_constants/margin_right = -16
+theme_override_constants/margin_bottom = -16
+
+[node name="shadow" type="TextureRect" parent="CanvasLayer/pause_screen/global_ui_margin/Control/Splash_text/MarginContainer"]
+show_behind_parent = true
+z_index = -1
+texture_filter = 1
+texture_repeat = 1
+layout_mode = 2
+texture = SubResource("GradientTexture2D_5gha5")
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/pause_screen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="Control" type="Control" parent="CanvasLayer/pause_screen/MarginContainer"]
+layout_mode = 2
+
+[node name="buttons" type="VBoxContainer" parent="CanvasLayer/pause_screen/MarginContainer/Control"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -356.0
+offset_top = -408.0
+offset_right = 356.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 32
+
+[node name="Label" type="Label" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 80
+text = "Game is paused"
+horizontal_alignment = 1
+
+[node name="Resume" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
+process_mode = 3
+layout_mode = 2
+theme = SubResource("Theme_f4dpo")
+theme_override_font_sizes/font_size = 80
+text = "Resume"
+
+[node name="Rate" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
+process_mode = 3
+layout_mode = 2
+theme = SubResource("Theme_f4dpo")
+theme_override_font_sizes/font_size = 80
+text = "Rate
+"
+
+[node name="Quit" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
+process_mode = 3
+layout_mode = 2
+theme = SubResource("Theme_f4dpo")
+theme_override_font_sizes/font_size = 80
+text = "Quit
+"
+
+[node name="pause_cooldown" type="Timer" parent="CanvasLayer/pause_screen"]
+wait_time = 0.35
+one_shot = true
+
+[node name="Announcement" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -326.0
+offset_top = -69.5
+offset_right = 326.0
+offset_bottom = 69.5
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_50cwo")
+
+[node name="Panel" type="Panel" parent="CanvasLayer/Announcement"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Announcement/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 50
+text = "Player wins"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[connection signal="pressed" from="CanvasLayer/pause_screen/MarginContainer/Control/buttons/Resume" to="CanvasLayer/pause_screen" method="_on_resume_pressed"]
+[connection signal="pressed" from="CanvasLayer/pause_screen/MarginContainer/Control/buttons/Rate" to="CanvasLayer/pause_screen" method="_on_rate_pressed"]
+[connection signal="pressed" from="CanvasLayer/pause_screen/MarginContainer/Control/buttons/Quit" to="CanvasLayer/pause_screen" method="quit"]
+
+[editable path="HBoxContainer/Player_viewport3"]
+[editable path="HBoxContainer/Player_viewport3/sub2/P2"]
+[editable path="HBoxContainer/Player_viewport"]
+[editable path="HBoxContainer/Player_viewport/sub2/P2"]

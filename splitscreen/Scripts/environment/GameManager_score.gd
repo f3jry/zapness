@@ -30,7 +30,9 @@ func die(index):
 	# In online mode, only host handles scoring logic
 	if NetworkManager.is_online() and not NetworkManager.is_host():
 		# Client just reports the death to host
-		_report_death.rpc_id(1, index)
+		# NOTE: the game host is a normal client over the WebSocket relay - the
+		# relay itself is transport-level peer 1. Target the game host instead.
+		_report_death.rpc_id(NetworkManager.game_host_peer_id(), index)
 		return
 	
 	_handle_death(index)

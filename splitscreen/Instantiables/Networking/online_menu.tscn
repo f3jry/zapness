@@ -1,0 +1,173 @@
+[gd_scene format=4 uid="uid://7ng6yrvcw570"]
+
+[ext_resource type="Script" path="res://Scripts/UI/MainMenu.gd" id="1_mainmenu"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_mainmenu")
+
+[node name="MainButtons" type="VBoxContainer" unique_name_in_owner=true parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -120.0
+offset_top = -120.0
+offset_right = 120.0
+offset_bottom = 120.0
+theme_override_constants/separation = 16
+
+[node name="OnlineBtn" type="Button" parent="MainButtons"]
+layout_mode = 2
+text = "Online"
+
+[node name="SplitscreenBtn" type="Button" parent="MainButtons"]
+layout_mode = 2
+text = "Local Splitscreen"
+
+[node name="ControlsBtn" type="Button" parent="MainButtons"]
+layout_mode = 2
+text = "Controls"
+
+[node name="QuitBtn" type="Button" parent="MainButtons"]
+layout_mode = 2
+text = "Quit"
+
+[node name="OnlinePanel" type="PanelContainer" unique_name_in_owner=true parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -220.0
+offset_right = 200.0
+offset_bottom = 220.0
+visible = false
+
+[node name="VBox" type="VBoxContainer" parent="OnlinePanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="OnlinePanel/VBox"]
+layout_mode = 2
+text = "Online"
+horizontal_alignment = 1
+
+[node name="ModeRow" type="HBoxContainer" unique_name_in_owner=true parent="OnlinePanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HostModeBtn" type="Button" unique_name_in_owner=true parent="OnlinePanel/VBox/ModeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Host Game"
+
+[node name="JoinModeBtn" type="Button" unique_name_in_owner=true parent="OnlinePanel/VBox/ModeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Join Game"
+
+[node name="HostPanel" type="VBoxContainer" unique_name_in_owner=true parent="OnlinePanel/VBox"]
+layout_mode = 2
+visible = false
+theme_override_constants/separation = 10
+
+[node name="WaitLabel" type="Label" parent="OnlinePanel/VBox/HostPanel"]
+layout_mode = 2
+text = "Your room code:"
+horizontal_alignment = 1
+
+[node name="HostCodeLabel" type="Label" unique_name_in_owner=true parent="OnlinePanel/VBox/HostPanel"]
+layout_mode = 2
+text = "----"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 48
+
+[node name="CopyHint" type="Label" parent="OnlinePanel/VBox/HostPanel"]
+layout_mode = 2
+text = "Share this code with your friend."
+horizontal_alignment = 1
+
+[node name="HostCancelBtn" type="Button" unique_name_in_owner=true parent="OnlinePanel/VBox/HostPanel"]
+layout_mode = 2
+text = "Cancel"
+
+[node name="JoinPanel" type="VBoxContainer" unique_name_in_owner=true parent="OnlinePanel/VBox"]
+layout_mode = 2
+visible = false
+theme_override_constants/separation = 10
+
+[node name="JoinLabel" type="Label" parent="OnlinePanel/VBox/JoinPanel"]
+layout_mode = 2
+text = "Enter room code:"
+horizontal_alignment = 1
+
+[node name="JoinCodeInput" type="LineEdit" unique_name_in_owner=true parent="OnlinePanel/VBox/JoinPanel"]
+layout_mode = 2
+placeholder_text = "ABCD"
+max_length = 4
+alignment = 1
+
+[node name="JoinConnectBtn" type="Button" unique_name_in_owner=true parent="OnlinePanel/VBox/JoinPanel"]
+layout_mode = 2
+text = "Connect"
+
+[node name="StatusLabel" type="Label" unique_name_in_owner=true parent="OnlinePanel/VBox"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="BackBtn" type="Button" unique_name_in_owner=true parent="OnlinePanel/VBox"]
+layout_mode = 2
+text = "← Back"
+
+[node name="ControlsPanel" type="PanelContainer" unique_name_in_owner=true parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -180.0
+offset_right = 200.0
+offset_bottom = 180.0
+visible = false
+
+[node name="ControlsVBox" type="VBoxContainer" parent="ControlsPanel"]
+layout_mode = 2
+
+[node name="ControlsTitle" type="Label" parent="ControlsPanel/ControlsVBox"]
+layout_mode = 2
+text = "Controls"
+horizontal_alignment = 1
+
+[node name="ControlsText" type="Label" parent="ControlsPanel/ControlsVBox"]
+layout_mode = 2
+text = "Player 1: WASD / FH (rotate) / T (shoot) / G (ability)
+Player 2: Numpad / Arrow (rotate) / Numpad0 (shoot)"
+horizontal_alignment = 1
+
+[node name="CloseControlsBtn" type="Button" parent="ControlsPanel/ControlsVBox"]
+layout_mode = 2
+text = "Close"
+
+[connection signal="pressed" from="MainButtons/OnlineBtn" to="." method="_on_online_btn_pressed"]
+[connection signal="pressed" from="MainButtons/SplitscreenBtn" to="." method="_on_splitscreen_btn_pressed"]
+[connection signal="pressed" from="MainButtons/ControlsBtn" to="." method="_on_controls_btn_pressed"]
+[connection signal="pressed" from="MainButtons/QuitBtn" to="." method="_on_quit_btn_pressed"]
+[connection signal="pressed" from="OnlinePanel/VBox/ModeRow/HostModeBtn" to="." method="_on_host_mode_btn_pressed"]
+[connection signal="pressed" from="OnlinePanel/VBox/ModeRow/JoinModeBtn" to="." method="_on_join_mode_btn_pressed"]
+[connection signal="pressed" from="OnlinePanel/VBox/HostPanel/HostCancelBtn" to="." method="_on_host_cancel_btn_pressed"]
+[connection signal="pressed" from="OnlinePanel/VBox/JoinPanel/JoinConnectBtn" to="." method="_on_join_connect_btn_pressed"]
+[connection signal="text_submitted" from="OnlinePanel/VBox/JoinPanel/JoinCodeInput" to="." method="_on_join_connect_btn_pressed"]
+[connection signal="pressed" from="OnlinePanel/VBox/BackBtn" to="." method="_on_back_btn_pressed"]
+[connection signal="pressed" from="ControlsPanel/ControlsVBox/CloseControlsBtn" to="." method="_on_controls_btn_pressed"]

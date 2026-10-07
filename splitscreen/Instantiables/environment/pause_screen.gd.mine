@@ -1,0 +1,213 @@
+extends Control
+
+var is_paused = false
+@export var cont_tex : Control
+@export var gradient : Control
+var anim_speed = 0.15
+
+@onready var buttons_container: VBoxContainer = $MarginContainer/Control/buttons
+@onready var online_container: VBoxContainer = $MarginContainer/Control/online_buttons if has_node("MarginContainer/Control/online_buttons") else null
+@onready var online_status: Label = $MarginContainer/Control/online_buttons/StatusLabel if has_node("MarginContainer/Control/online_buttons/StatusLabel") else null
+@onready var join_ip_edit: LineEdit = $MarginContainer/Control/online_buttons/JoinIP if has_node("MarginContainer/Control/online_buttons/JoinIP") else null
+@onready var online_btn: Button = $MarginContainer/Control/buttons/Online if has_node("MarginContainer/Control/buttons/Online") else null
+
+var _current_code := ""
+
+func _ready() -> void: 
+	visible = false
+	if online_container:
+		online_container.visible = false
+	if join_ip_edit:
+		join_ip_edit.placeholder_text = "Room code (e.g. AB3C)"
+		join_ip_edit.text = ""
+		join_ip_edit.max_length = 4
+	
+	NetworkManager.connection_status_changed.connect(_on_network_status_changed)
+	NetworkManager.match_ready.connect(_on_online_match_ready)
+	RoomRelay.room_registered.connect(_on_room_registered)
+	RoomRelay.room_resolved.connect(_on_room_resolved)
+	RoomRelay.relay_error.connect(_on_relay_error)
+	
+	# CLI support for dedicated/headless host or join
+	var args = OS.get_cmdline_args() + OS.get_cmdline_user_args()
+	if "--server" in args or "--host" in args:
+		print("[CLI] Hosting on port 8080...")
+		NetworkManager.host_game(8080)
+		return
+	if "--client" in args or "--join" in args:
+		print("[CLI] Joining 127.0.0.1:8080...")
+		NetworkManager.join_game("127.0.0.1", 8080)
+		return
+	
+	# First pause / menu
+	if GameManager.rounds_played < 1 and GameManager.new_game == false:
+		is_paused = true
+		$MarginContainer/Control/buttons/Resume.text = "begin"
+		$MarginContainer/Control/buttons/Label.visible = false
+		if online_btn:
+			online_btn.visible = true
+		await get_tree().create_timer(0.1).timeout
+		call_deferred("update_pause")
+
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause"):
+		if !$pause_cooldown.is_stopped(): return
+		is_paused = !is_paused
+		update_pause()
+
+func update_pause():
+	visible = is_paused
+	get_tree().paused = is_paused
+	if is_paused == true:
+		var new_tween = get_tree().create_tween()
+		new_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		new_tween.set_trans(Tween.TRANS_QUINT)
+		cont_tex.scale = Vector2(1,0.8)
+		gradient.modulate = Color.TRANSPARENT
+		new_tween.parallel().tween_property(cont_tex,"scale",Vector2.ONE,anim_speed)
+		new_tween.parallel().tween_property(gradient,"modulate",Color.WHITE,anim_speed)
+	$pause_cooldown.start()
+	if is_paused == false: 
+		$MarginContainer/Control/buttons/Resume.text = "resume"
+		$MarginContainer/Control/buttons/Label.visible = true
+		if online_btn:
+			online_btn.visible = false
+
+func quit() -> void:
+	print("pressed")
+	if _current_code:
+		RoomRelay.cancel_room(_current_code)
+	if NetworkManager.is_online:
+		NetworkManager.disconnect_game()
+	get_tree().quit()
+
+func _on_rate_pressed() -> void:
+	OS.shell_open("https://ironinblood.itch.io/zapness/rate")
+
+func _on_resume_pressed() -> void:
+	if !$pause_cooldown.is_stopped(): return
+	if online_container and online_container.visible:
+		_on_online_back_pressed()
+	is_paused = false
+	update_pause()
+
+func _on_online_pressed() -> void:
+	if buttons_container:
+		buttons_container.visible = false
+	if online_container:
+		online_container.visible = true
+	if online_status:
+		online_status.text = "Host a game to get a code, or enter a friend's code to join."
+	if join_ip_edit:
+		if OS.has_feature("web"):
+			join_ip_edit.text = ""
+			join_ip_edit.placeholder_text = "ENTER 4-LETTER CODE"
+			join_ip_edit.max_length = 4
+		else:
+			join_ip_edit.placeholder_text = "IP:Port"
+
+# ── Host flow ──────────────────────────────────────────────────────────────────
+func _on_host_pressed() -> void:
+	if OS.has_feature("web"):
+		if online_status:
+			online_status.text = "Creating room on relay..."
+		NetworkManager.host_game()
+		return
+		
+	if online_status:
+		online_status.text = "Opening server..."
+	var err := NetworkManager.host_game(8080)
+	if err != OK:
+		if online_status:
+			online_status.text = "Failed to host: " + error_string(err)
+		return
+	if online_status:
+		online_status.text = "Registering with relay..."
+	_fetch_public_ip_then_register()
+
+func _fetch_public_ip_then_register() -> void:
+	var http := HTTPRequest.new()
+	if not OS.has_feature("web"):
+		http.use_threads = true
+	add_child(http)
+	http.request_completed.connect(func(result, code, _h, body):
+		http.queue_free()
+		var pub_ip := ""
+		if result == HTTPRequest.RESULT_SUCCESS and code == 200:
+			pub_ip = body.get_string_from_utf8().strip_edges()
+		
+		var lan_ip := ""
+		for addr in IP.get_local_addresses():
+			if addr.is_valid_ip_address() and not addr.begins_with("127.") and not addr.begins_with("::1") and not addr.begins_with("fe80"):
+				lan_ip = addr
+				break
+		if lan_ip.is_empty():
+			lan_ip = "127.0.0.1"
+		
+		if pub_ip.is_empty() or not pub_ip.is_valid_ip_address():
+			pub_ip = lan_ip
+			
+		RoomRelay.register_room(pub_ip, lan_ip, 8080)
+	)
+	http.request("https://ironinblood.pythonanywhere.com/get_own_ip")
+
+func _on_room_registered(code: String) -> void:
+	_current_code = code
+	if online_status:
+		online_status.text = "Your code:  " + code + "\nShare it with your friend!"
+
+# ── Join flow ──────────────────────────────────────────────────────────────────
+func _on_join_pressed() -> void:
+	if not join_ip_edit: return
+	var code := join_ip_edit.text.strip_edges().to_upper()
+	if code.length() != 4:
+		if online_status: online_status.text = "Enter the full 4-letter code."
+		return
+		
+	if OS.has_feature("web"):
+		if online_status:
+			online_status.text = "Connecting to room '%s'..." % code
+		NetworkManager.join_game(code)
+		return
+		
+	if online_status:
+		online_status.text = "Looking up '%s'..." % code
+	RoomRelay.resolve_room(code)
+
+func _on_room_resolved(ip: String, port: int) -> void:
+	if online_status:
+		online_status.text = "Found host, connecting..."
+	var err := NetworkManager.join_game(ip, port)
+	if err != OK:
+		if online_status:
+			online_status.text = "Connection error: " + error_string(err)
+
+func _on_relay_error(message: String) -> void:
+	if online_status:
+		online_status.text = "Error: " + message
+
+# ── Back / cancel ──────────────────────────────────────────────────────────────
+func _on_online_back_pressed() -> void:
+	if _current_code:
+		RoomRelay.cancel_room(_current_code)
+		_current_code = ""
+	NetworkManager.disconnect_game()
+	if online_container:
+		online_container.visible = false
+	if buttons_container:
+		buttons_container.visible = true
+
+# ── Network callbacks ──────────────────────────────────────────────────────────
+func _on_network_status_changed(status: String) -> void:
+	if online_status:
+		online_status.text = status
+
+func _on_online_match_ready() -> void:
+	is_paused = false
+	visible = false
+	get_tree().paused = false
+	if online_container:
+		online_container.visible = false
+	if buttons_container:
+		buttons_container.visible = true
+	update_pause()
