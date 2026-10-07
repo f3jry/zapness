@@ -214,9 +214,10 @@ grow_vertical = 0
 theme_override_constants/separation = 32
 
 [node name="Label" type="Label" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
+visible = false
 layout_mode = 2
 theme_override_font_sizes/font_size = 80
-text = "Game is paused"
+text = ""
 horizontal_alignment = 1
 
 [node name="Resume" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
@@ -224,9 +225,10 @@ process_mode = 3
 layout_mode = 2
 theme = SubResource("Theme_f4dpo")
 theme_override_font_sizes/font_size = 80
-text = "Resume"
+text = "Create Game"
 
 [node name="online" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
+visible = false
 process_mode = 3
 layout_mode = 2
 theme = SubResource("Theme_f4dpo")
@@ -235,6 +237,7 @@ text = "online
 "
 
 [node name="Rate" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
+visible = false
 process_mode = 3
 layout_mode = 2
 theme = SubResource("Theme_f4dpo")
@@ -243,6 +246,7 @@ text = "Rate
 "
 
 [node name="Quit" type="Button" parent="CanvasLayer/pause_screen/MarginContainer/Control/buttons"]
+visible = false
 process_mode = 3
 layout_mode = 2
 theme = SubResource("Theme_f4dpo")

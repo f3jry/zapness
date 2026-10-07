@@ -17,7 +17,7 @@ var anim_speed := 0.15
 @onready var pause_cooldown: Timer = $pause_cooldown
 @onready var buttons_container: VBoxContainer = $MarginContainer/Control/buttons
 
-# Discord dynamic lobby list & discovery
+# Dynamic lobby list & discovery
 var lobby_poll_timer: Timer = null
 var lobby_list_container: VBoxContainer = null
 var active_lobbies: Array = []
@@ -28,7 +28,18 @@ var http_poll_req: HTTPRequest = null
 var _last_rendered_lobbies: Array = []
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
+
+	# Ensure button signals are connected
+	if not btn_resume.pressed.is_connected(_on_resume_pressed):
+		btn_resume.pressed.connect(_on_resume_pressed)
+	if not btn_online.pressed.is_connected(_on_online_pressed):
+		btn_online.pressed.connect(_on_online_pressed)
+	if not btn_rate.pressed.is_connected(_on_rate_pressed):
+		btn_rate.pressed.connect(_on_rate_pressed)
+	if not btn_quit.pressed.is_connected(quit):
+		btn_quit.pressed.connect(quit)
 
 	# Hook into network events
 	NetworkManager.player_connected.connect(_on_player_connected)
@@ -38,8 +49,6 @@ func _ready() -> void:
 	NetworkManager.lobby_joined.connect(_on_lobby_joined)
 
 	_setup_discord_lobby_ui()
-
-	# Start discovery connection
 	_connect_discovery_ws()
 
 	# Initial boot into menu
@@ -47,7 +56,7 @@ func _ready() -> void:
 		is_paused = true
 		has_started_match = false
 		_update_menu_buttons()
-		await get_tree().create_timer(0.1).timeout
+		await get_tree().create_timer(0.05, true).timeout
 		call_deferred("update_pause")
 
 func _process(delta: float) -> void:
@@ -72,14 +81,18 @@ func _process(delta: float) -> void:
 func _setup_discord_lobby_ui() -> void:
 	lobby_list_container = VBoxContainer.new()
 	lobby_list_container.name = "DiscordLobbyList"
+	lobby_list_container.process_mode = Node.PROCESS_MODE_ALWAYS
 	lobby_list_container.add_theme_constant_override("separation", 12)
-	# Insert right below status label
+	# Insert right below btn_resume ("Create Game")
 	buttons_container.add_child(lobby_list_container)
-	buttons_container.move_child(lobby_list_container, 1)
+	var resume_idx = buttons_container.get_children().find(btn_resume)
+	if resume_idx >= 0:
+		buttons_container.move_child(lobby_list_container, resume_idx + 1)
 
 	# Fallback HTTP polling timer
 	lobby_poll_timer = Timer.new()
 	lobby_poll_timer.name = "LobbyPollTimer"
+	lobby_poll_timer.process_mode = Node.PROCESS_MODE_ALWAYS
 	lobby_poll_timer.wait_time = 2.0
 	lobby_poll_timer.autostart = false
 	lobby_poll_timer.timeout.connect(_on_lobby_poll_timeout)
@@ -87,6 +100,7 @@ func _setup_discord_lobby_ui() -> void:
 
 	http_poll_req = HTTPRequest.new()
 	http_poll_req.name = "LobbyHttpPoll"
+	http_poll_req.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(http_poll_req)
 	http_poll_req.request_completed.connect(_on_http_poll_completed)
 
@@ -109,7 +123,7 @@ func _on_lobby_poll_timeout() -> void:
 	_poll_http_lobbies()
 
 func _poll_http_lobbies() -> void:
-	if http_poll_req.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+	if http_poll_req == null or http_poll_req.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
 		return
 	var channel_id = NetworkManager.get_discord_channel_id()
 	var base_url = "https://solar-dui-paid-might.trycloudflare.com/lobbies"
@@ -152,25 +166,26 @@ func update_pause() -> void:
 		var new_tween = get_tree().create_tween()
 		new_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 		new_tween.set_trans(Tween.TRANS_QUINT)
-		cont_tex.scale = Vector2(1, 0.8)
-		gradient.modulate = Color.TRANSPARENT
-		new_tween.parallel().tween_property(cont_tex, "scale", Vector2.ONE, anim_speed)
-		new_tween.parallel().tween_property(gradient, "modulate", Color.WHITE, anim_speed)
+		if cont_tex:
+			cont_tex.scale = Vector2(1, 0.8)
+			new_tween.parallel().tween_property(cont_tex, "scale", Vector2.ONE, anim_speed)
+		if gradient:
+			gradient.modulate = Color.TRANSPARENT
+			new_tween.parallel().tween_property(gradient, "modulate", Color.WHITE, anim_speed)
 	else:
 		lobby_poll_timer.stop()
 
 	pause_cooldown.start()
 
-func _is_in_discord_or_web() -> bool:
-	return true
-
 func _on_lobby_created(_lobby_id: String) -> void:
 	if is_hosting_online:
+		status_label.visible = true
 		status_label.text = "Hosting match! Waiting for friend in call..."
 		status_label.modulate = Color(1.0, 0.85, 0.3)
 
 func _on_lobby_joined(_lobby_id: String) -> void:
 	if is_connecting_online:
+		status_label.visible = true
 		status_label.text = "Connected! Starting match..."
 		status_label.modulate = Color(0.4, 1.0, 0.5)
 
@@ -213,7 +228,6 @@ func _refresh_lobby_list_display() -> void:
 		if room_code.is_empty():
 			continue
 
-		# Retro lobby card
 		var card = PanelContainer.new()
 		var card_style = StyleBoxFlat.new()
 		card_style.bg_color = Color(0.12, 0.12, 0.18, 0.95)
@@ -253,6 +267,7 @@ func _refresh_lobby_list_display() -> void:
 		# Join button
 		var join_btn = Button.new()
 		join_btn.text = "JOIN"
+		join_btn.process_mode = Node.PROCESS_MODE_ALWAYS
 		join_btn.add_theme_font_size_override("font_size", 44)
 		join_btn.custom_minimum_size = Vector2(140, 48)
 		join_btn.pressed.connect(func(): _join_selected_lobby(room_code, host_name))
@@ -268,6 +283,7 @@ func _load_avatar_texture(avatar_url: String, target_rect: TextureRect) -> void:
 		return
 
 	var http = HTTPRequest.new()
+	http.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(http)
 	http.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
 		http.queue_free()
@@ -285,9 +301,9 @@ func _load_avatar_texture(avatar_url: String, target_rect: TextureRect) -> void:
 	http.request(avatar_url)
 
 func _join_selected_lobby(room_code: String, host_name: String) -> void:
-	if not pause_cooldown.is_stopped():
-		return
+	print("pause_screen: JOIN selected lobby ", room_code, " hosted by ", host_name)
 	is_connecting_online = true
+	status_label.visible = true
 	status_label.text = "Joining " + host_name + "..."
 	status_label.modulate = Color(1.0, 0.85, 0.3)
 	_update_menu_buttons()
@@ -300,7 +316,7 @@ func _join_selected_lobby(room_code: String, host_name: String) -> void:
 		_update_menu_buttons()
 
 func _update_menu_buttons() -> void:
-	# Active Match Pause state
+	# Active Match Pause state (during gameplay)
 	if has_started_match:
 		_clear_lobby_cards()
 		status_label.visible = true
@@ -312,14 +328,11 @@ func _update_menu_buttons() -> void:
 		if NetworkManager.is_online():
 			btn_online.visible = true
 			btn_online.text = "Leave Match"
-			btn_rate.visible = false
-			btn_quit.visible = false
 		else:
 			btn_online.visible = true
 			btn_online.text = "Restart"
-			btn_rate.visible = true
-			btn_rate.text = "Main Menu"
-			btn_quit.visible = not OS.has_feature("web")
+		btn_rate.visible = false
+		btn_quit.visible = false
 		return
 
 	# Main Menu — Waiting for opponent state (Hosting)
@@ -350,38 +363,27 @@ func _update_menu_buttons() -> void:
 		btn_quit.visible = false
 		return
 
-	# Main Menu — Discord Activity flow
-	btn_quit.visible = false
-	btn_online.visible = false
+	# Main Menu — Idle Discord version menu
+	# "in the discord version there should be create game, lobbies would show up if there are any in the call and that's all."
+	status_label.visible = false
+	status_label.text = ""
 
-	if active_lobbies.is_empty():
+	btn_resume.visible = true
+	btn_resume.text = "Create Game"
+
+	# Hide all extraneous buttons
+	btn_online.visible = false
+	btn_rate.visible = false
+	btn_quit.visible = false
+
+	if not active_lobbies.is_empty():
+		_refresh_lobby_list_display()
+	else:
 		_clear_lobby_cards()
 		_last_rendered_lobbies.clear()
-		status_label.visible = true
-		status_label.text = "No active games in call"
-		status_label.modulate = Color(0.7, 0.7, 0.8)
-
-		btn_resume.visible = true
-		btn_resume.text = "Create Game"
-
-		btn_rate.visible = true
-		btn_rate.text = "Practice"
-	else:
-		status_label.visible = true
-		status_label.text = "Games in Call (" + str(active_lobbies.size()) + ")"
-		status_label.modulate = Color(0.4, 1.0, 0.5)
-		_refresh_lobby_list_display()
-
-		btn_resume.visible = true
-		btn_resume.text = "Create Game"
-
-		btn_rate.visible = true
-		btn_rate.text = "Practice"
 
 func _on_resume_pressed() -> void:
-	if not pause_cooldown.is_stopped():
-		return
-
+	print("pause_screen: _on_resume_pressed (hosting=", is_hosting_online, " connecting=", is_connecting_online, " has_started=", has_started_match, ")")
 	# Cancel hosting or connecting
 	if is_hosting_online or is_connecting_online:
 		NetworkManager.disconnect_game()
@@ -404,14 +406,12 @@ func _on_resume_pressed() -> void:
 	var err = NetworkManager.host_game()
 	if err != OK:
 		is_hosting_online = false
-		status_label.text = "Failed to create game!"
+		status_label.visible = true
+		status_label.text = "Failed to create game: " + str(err)
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 		_update_menu_buttons()
 
 func _on_online_pressed() -> void:
-	if not pause_cooldown.is_stopped():
-		return
-
 	# In-game -> "Leave Match"
 	if has_started_match and NetworkManager.is_online():
 		NetworkManager.disconnect_game()
@@ -426,21 +426,7 @@ func _on_online_pressed() -> void:
 		return
 
 func _on_rate_pressed() -> void:
-	if not pause_cooldown.is_stopped():
-		return
-
-	# Main menu -> "Practice"
-	if not has_started_match:
-		has_started_match = true
-		is_paused = false
-		update_pause()
-		return
-
-	# In-game local pause -> "Main Menu"
-	if has_started_match:
-		has_started_match = false
-		_update_menu_buttons()
-		return
+	pass
 
 func quit() -> void:
 	get_tree().quit()
@@ -450,6 +436,7 @@ func quit() -> void:
 # ---------------------------------------------------------------------------
 
 func _on_player_connected(_peer_id: int) -> void:
+	print("pause_screen: player connected! starting match...")
 	is_hosting_online = false
 	is_connecting_online = false
 	status_label.visible = true
@@ -457,7 +444,7 @@ func _on_player_connected(_peer_id: int) -> void:
 	status_label.modulate = Color(0.3, 1.0, 0.4)
 	_clear_lobby_cards()
 
-	await get_tree().create_timer(0.7).timeout
+	await get_tree().create_timer(0.5, true).timeout
 	has_started_match = true
 	is_paused = false
 	update_pause()
