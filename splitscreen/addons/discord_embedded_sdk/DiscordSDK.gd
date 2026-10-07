@@ -890,6 +890,7 @@ var guild_id: String
 var user_id: String
 var custom_id: String
 var referrer_id: String
+var current_user_data: CurrentUserUpdateData = null
 
 var source: JavaScriptObject
 var source_origin: String
@@ -953,6 +954,7 @@ func _handle_dispatch(data):
 		"CURRENT_USER_UPDATE":
 			user_id = data["data"]["id"]
 			var event_data := CurrentUserUpdateData.decode(data["data"])
+			current_user_data = event_data
 			dispatch_any.emit(event, event_data)
 			dispatch_current_user_update.emit(event_data)
 		"THERMAL_STATE_UPDATE":

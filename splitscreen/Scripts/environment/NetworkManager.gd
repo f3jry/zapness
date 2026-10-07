@@ -79,20 +79,25 @@ func _get_relay_url() -> String:
 	if not relay_url_override.is_empty():
 		return relay_url_override
 	if _is_web_platform():
-		# Same origin as the page. Inside Discord that is the app's
-		# {clientId}.discordsays.com proxy host, so /ws must exist as a URL
-		# mapping in the Developer Portal (see game-server/README.md).
 		var proto := str(JavaScriptBridge.eval("window.location.protocol", true))
 		var host := str(JavaScriptBridge.eval("window.location.host", true))
+		if host.ends_with("discordsays.com"):
+			var ws_proto := "wss" if proto == "https:" else "ws"
+			return "%s://%s/ws" % [ws_proto, host]
+		elif host.ends_with("github.io"):
+			return "wss://solar-dui-paid-might.trycloudflare.com/ws"
 		var ws_proto := "wss" if proto == "https:" else "ws"
 		return "%s://%s/ws" % [ws_proto, host]
-	return "ws://127.0.0.1:8920/ws"
+	return "wss://solar-dui-paid-might.trycloudflare.com/ws"
 
 ## -------------------------------------------------------- lobby control ---
 
 ## Create a new lobby as host.
-func host_game() -> Error:
-	var err := _connect_to_relay(_generate_lobby_id(), true)
+func host_game(custom_code: String = "") -> Error:
+	var code := custom_code.strip_edges().to_upper()
+	if code.is_empty():
+		code = _generate_lobby_id()
+	var err := _connect_to_relay(code, true)
 	if err != OK:
 		_reset_state()
 	return err
@@ -113,6 +118,16 @@ func _connect_to_relay(room_code: String, as_host: bool) -> Error:
 	current_lobby_id = room_code
 	ws_peer = WebSocketMultiplayerPeer.new()
 	var url := "%s?role=%s&room=%s" % [_get_relay_url(), "host" if as_host else "join", room_code]
+	var username := get_discord_username()
+	var avatar := get_discord_avatar()
+	var channel := get_discord_channel_id()
+	if not username.is_empty():
+		url += "&user=" + username.uri_encode()
+	if not avatar.is_empty():
+		url += "&avatar=" + avatar.uri_encode()
+	if not channel.is_empty():
+		url += "&channel=" + channel.uri_encode()
+
 	var err := ws_peer.create_client(url)
 	if err != OK:
 		push_error("Failed to start WebSocket client: " + str(err))
@@ -121,6 +136,41 @@ func _connect_to_relay(room_code: String, as_host: bool) -> Error:
 	is_online_mode = true
 	print("NetworkManager: connecting to relay (role=%s, room=%s)" % ["host" if as_host else "join", room_code])
 	return OK
+
+func get_discord_channel_id() -> String:
+	var em = get_node_or_null("/root/DiscordEM")
+	if em and not str(em.get("channel_id")).is_empty():
+		return str(em.get("channel_id"))
+	if _is_web_platform():
+		return str(JavaScriptBridge.eval("""
+			(function() {
+				try {
+					var p = new URLSearchParams(window.location.search);
+					return p.get('channel_id') || '';
+				} catch(e) { return ''; }
+			})()
+		""", true))
+	return ""
+
+func get_discord_username() -> String:
+	var em = get_node_or_null("/root/DiscordEM")
+	if em and em.get("current_user_data") != null:
+		var u = em.get("current_user_data")
+		if not str(u.get("global_name")).is_empty():
+			return str(u.get("global_name"))
+		if not str(u.get("username")).is_empty():
+			return str(u.get("username"))
+	return "Player"
+
+func get_discord_avatar() -> String:
+	var em = get_node_or_null("/root/DiscordEM")
+	if em and em.get("current_user_data") != null:
+		var u = em.get("current_user_data")
+		var av = str(u.get("avatar"))
+		var uid = str(u.get("id"))
+		if not av.is_empty() and not uid.is_empty():
+			return "https://cdn.discordapp.com/avatars/%s/%s.png?size=128" % [uid, av]
+	return ""
 
 ## ------------------------------------------------- multiplayer callbacks ---
 

@@ -1,0 +1,17 @@
+{
+	"name": "zapness-relay",
+	"version": "1.0.0",
+	"description": "WebSocket relay for Zapness (Godot) as a Discord Activity - implements the server side of Godot's WebSocketMultiplayerPeer protocol",
+	"main": "server.js",
+	"scripts": {
+		"start": "node server.js",
+		"test": "node test_relay.js",
+		"test:e2e": "GODOT_BIN=${GODOT_BIN:-godot} test_e2e/run_e2e.sh"
+	},
+	"engines": {
+		"node": ">=18"
+	},
+	"dependencies": {
+		"ws": "^8.18.0"
+	}
+}

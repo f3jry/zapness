@@ -1,0 +1,22 @@
+# Render blueprint - deploys the Zapness relay as a free web service.
+# https://render.com/docs/blueprint-spec
+#
+# Deploy: Render dashboard -> New + -> Blueprint -> pick the repo that
+# contains this file. Everything below is preconfigured; you only need to
+# drop the Godot web export into ./public (see DISCORD_SETUP.md).
+#
+# Note: the free plan spins the service down after 15 minutes without
+# inbound traffic (~1 minute cold start on the next request). To keep it
+# awake between play sessions, point a free UptimeRobot (or similar) monitor
+# at https://<your-service>.onrender.com/health every 5 minutes, or set
+# KEEP_ALIVE_URL (see server.js) and let the service ping itself.
+
+services:
+  - type: web
+    name: zapness-relay
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    autoDeploy: true

@@ -1,0 +1,9 @@
+# Minimal project used by test_e2e to drive two real Godot instances
+# against the WebSocket relay. Not part of the game.
+
+config_version=5
+
+[application]
+
+config/name="ZapnessRelayE2E"
+run/main_scene="res://test_main.tscn"
