@@ -30,8 +30,9 @@ func _physics_process(delta: float) -> void:
 func make_a_ray(pos):
 	var space_state = get_world_2d().direct_space_state
 	# use global coordinates, not local to node
-	var exclude : Array[RID]
-	exclude.append(collision_exclude)
+	var exclude : Array[RID] = []
+	if collision_exclude and collision_exclude.has_method("get_rid"):
+		exclude.append(collision_exclude.get_rid())
 	var query = PhysicsRayQueryParameters2D.create(global_position,pos,-1,exclude)
 	query.hit_from_inside = true
 	return space_state.intersect_ray(query)

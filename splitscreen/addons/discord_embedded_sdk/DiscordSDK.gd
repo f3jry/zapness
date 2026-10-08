@@ -1002,24 +1002,25 @@ func init(client_id_: String):
 	if (!query_map.has("platform")):
 		push_error("platform query variable is not set!")
 
-	frame_id = query_map["frame_id"]
-	instance_id = query_map["instance_id"]
-	platform = query_map["platform"]
-	channel_id = query_map["channel_id"]
-	if (query_map.has("guild_id")):
-		guild_id = query_map["guild_id"]
-	else:
-		guild_id = ""
+	frame_id = query_map.get("frame_id", "")
+	instance_id = query_map.get("instance_id", "")
+	platform = query_map.get("platform", "web")
+	channel_id = query_map.get("channel_id", "")
+	guild_id = query_map.get("guild_id", "")
+	if guild_id.is_empty():
 		print("Not in a guild")
-	if (query_map.has("custom_id")):
-		custom_id = query_map["custom_id"]
-	if (query_map.has("referrer_id")):
-		referrer_id = query_map["referrer_id"]
+	custom_id = query_map.get("custom_id", "")
+	referrer_id = query_map.get("referrer_id", "")
 	client_id = client_id_
-	source = JavaScriptBridge.get_interface("window").parent.opener
-	if (source == null):
-		source = JavaScriptBridge.get_interface("window").parent
-	JavaScriptBridge.eval("window.source = window.parent.opener ?? window.parent", true)
+
+	source = JavaScriptBridge.get_interface("window").parent
+	JavaScriptBridge.eval("""
+		try {
+			window.source = window.parent || window.opener || window;
+		} catch(e) {
+			window.source = window;
+		}
+	""", true)
 
 	source_origin = JavaScriptBridge.eval("!!document.referrer ? document.referrer : '*'")
 	handshake()
@@ -1032,11 +1033,8 @@ func sendMessage(opcode: int, body: Dictionary):
 		opcode,
 		body
 	]
-	# note about this, source.postMessage doesn't work, because `data` somehow
-	# turns into `undefined` somewhere. not sure how to fix, but this works
-	# for now.
-	JavaScriptBridge.eval("window.source.postMessage(" + JSON.stringify(data).replace("'", "\\'") + ", '*')", false)
-	#source.postMessage(data, "*")
+	# Send via window.source or window.parent safely
+	JavaScriptBridge.eval("try { (window.source || window.parent).postMessage(" + JSON.stringify(data).replace("'", "\\'") + ", '*'); } catch(e) { console.error('Discord postMessage error:', e); }", false)
 
 func sendCommand(cmd: String, args: Dictionary, nonce: String):
 	if (not in_js):
