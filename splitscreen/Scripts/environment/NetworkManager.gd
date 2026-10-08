@@ -34,7 +34,7 @@ const GAME_HOST_PEER_ID := 2
 ## e.g. "https://zapness-relay.onrender.com". Used for github.io + native.
 ## Inside Discord the game uses same-origin /relay/* via the Portal mapping,
 ## so no client change is needed there.
-const DEFAULT_RELAY_ORIGIN := "https://4792-89-103-223-220.ngrok-free.app"
+const DEFAULT_RELAY_ORIGIN := "https://electrodiagnostic-leighton-seekingly.ngrok-free.dev"
 var ws_peer: MultiplayerPeer = null
 var is_online_mode: bool = false
 var current_lobby_id: String = ""
