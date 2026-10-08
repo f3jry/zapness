@@ -111,11 +111,14 @@ func _connect_discovery_ws() -> void:
 	if not channel_id.is_empty():
 		url += "&channel=" + channel_id.uri_encode()
 
+	print("pause_screen: connecting discovery WS to: ", url)
 	discovery_ws = WebSocketPeer.new()
 	var err = discovery_ws.connect_to_url(url)
 	if err != OK:
 		print("pause_screen: discovery WS connect failed: ", err)
 		discovery_ws = null
+	else:
+		print("pause_screen: discovery WS connect OK")
 
 func _on_lobby_poll_timeout() -> void:
 	if not is_paused or has_started_match or is_hosting_online or is_connecting_online:
@@ -123,22 +126,34 @@ func _on_lobby_poll_timeout() -> void:
 	_poll_http_lobbies()
 
 func _poll_http_lobbies() -> void:
-	if http_poll_req == null or http_poll_req.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+	if http_poll_req == null:
+		print("pause_screen: http_poll_req is null!")
+		return
+	var status = http_poll_req.get_http_client_status()
+	if status != HTTPClient.STATUS_DISCONNECTED:
+		print("pause_screen: HTTP request busy (status=", status, ")")
 		return
 	var channel_id = NetworkManager.get_discord_channel_id()
 	var base_url = NetworkManager.get_relay_http_url("/lobbies")
 	if not channel_id.is_empty():
 		base_url += "?channel=" + channel_id.uri_encode()
-	http_poll_req.request(base_url)
+	print("pause_screen: polling HTTP lobbies from: ", base_url)
+	var err = http_poll_req.request(base_url)
+	if err != OK:
+		print("pause_screen: http_poll_req.request failed: ", err)
 
 func _on_http_poll_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	print("pause_screen: HTTP poll completed (result=", result, " code=", response_code, " body_len=", body.size(), ")")
 	if result == HTTPRequest.RESULT_SUCCESS and response_code == 200:
 		var json = JSON.new()
 		if json.parse(body.get_string_from_utf8()) == OK and json.get_data() is Array:
-			_update_active_lobbies(json.get_data())
+			var list: Array = json.get_data()
+			print("pause_screen: parsed lobbies count=", list.size())
+			_update_active_lobbies(list)
 
 func _update_active_lobbies(lobbies: Array) -> void:
 	active_lobbies = lobbies
+	print("pause_screen: _update_active_lobbies: ", active_lobbies.size(), " lobbies")
 	if is_paused and not has_started_match and not is_hosting_online and not is_connecting_online:
 		_update_menu_buttons()
 

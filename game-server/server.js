@@ -130,6 +130,7 @@ function broadcastLobbies() {
 }
 
 const httpServer = http.createServer((req, res) => {
+	log(`HTTP ${req.method} ${req.url}`);
 	if (req.url === '/health' || req.url === '/relay/health') {
 		res.writeHead(200, { 'content-type': 'text/plain' });
 		res.end('ok');
@@ -182,6 +183,7 @@ function closeEarly(req, socket, code, reason) {
 }
 
 httpServer.on('upgrade', (req, socket, head) => {
+	log(`WS upgrade: ${req.url}`);
 	const url = new URL(req.url, 'http://localhost');
 	const role = url.searchParams.get('role') || 'join';
 	const roomCode = (url.searchParams.get('room') || '').toUpperCase();

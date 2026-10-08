@@ -30,6 +30,11 @@ const RELAY_PEER_ID := 1
 ## The first client in a room - acts as the game host (scoring authority etc).
 const GAME_HOST_PEER_ID := 2
 
+## Permanent relay origin (Render). Swap this one line when you deploy —
+## e.g. "https://zapness-relay.onrender.com". Used for github.io + native.
+## Inside Discord the game uses same-origin /relay/* via the Portal mapping,
+## so no client change is needed there.
+const DEFAULT_RELAY_ORIGIN := "https://zapness-relay.onrender.com"
 var ws_peer: MultiplayerPeer = null
 var is_online_mode: bool = false
 var current_lobby_id: String = ""
@@ -85,10 +90,10 @@ func _get_relay_url() -> String:
 			var ws_proto := "wss" if proto == "https:" else "ws"
 			return "%s://%s/relay/ws" % [ws_proto, host]
 		elif host.ends_with("github.io"):
-			return "wss://solar-dui-paid-might.trycloudflare.com/ws"
+			return DEFAULT_RELAY_ORIGIN.replace("https://", "wss://") + "/ws"
 		var ws_proto := "wss" if proto == "https:" else "ws"
 		return "%s://%s/relay/ws" % [ws_proto, host]
-	return "wss://solar-dui-paid-might.trycloudflare.com/ws"
+	return DEFAULT_RELAY_ORIGIN.replace("https://", "wss://") + "/ws"
 
 ## HTTP endpoint of the relay for REST requests (e.g. /lobbies, /health).
 func get_relay_http_url(endpoint: String) -> String:
@@ -99,9 +104,9 @@ func get_relay_http_url(endpoint: String) -> String:
 		if host.ends_with("discordsays.com"):
 			return "%s//%s/relay%s" % [proto, host, path]
 		elif host.ends_with("github.io"):
-			return "https://solar-dui-paid-might.trycloudflare.com%s" % path
+			return DEFAULT_RELAY_ORIGIN + path
 		return "%s//%s/relay%s" % [proto, host, path]
-	return "https://solar-dui-paid-might.trycloudflare.com%s" % path
+	return DEFAULT_RELAY_ORIGIN + path
 
 ## -------------------------------------------------------- lobby control ---
 
