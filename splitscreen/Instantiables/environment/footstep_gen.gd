@@ -5,6 +5,8 @@ func _ready() -> void:
 	pass # Replace with function body.
 
 func p_enter(body: Node2D) -> void:
-	if body.is_in_group("player"):body.footstep_manager.stream = randomizer
+	if body and body.is_in_group("player") and "footstep_manager" in body and body.footstep_manager:
+		body.footstep_manager.stream = randomizer
 func p_exit(body: Node2D) -> void:
-	if body.is_in_group("player"):body.footstep_manager.stream = AudioStreamRandomizer.new()
+	if body and body.is_in_group("player") and "footstep_manager" in body and body.footstep_manager:
+		body.footstep_manager.stream = AudioStreamRandomizer.new()

@@ -23,8 +23,9 @@ func _input(event):
 			if last_string.contains("SLEPICE"): 
 				is_sleeping = true
 				visible = true
-				$"../slejbl".modulate = Color.WHITE
-				$"../slejbl".visible = true
-				var tree = get_tree().create_tween()
-				tree.tween_property($"../slejbl","modulate",Color.TRANSPARENT,5)
+				if has_node("../slejbl"):
+					$"../slejbl".modulate = Color.WHITE
+					$"../slejbl".visible = true
+					var tree = get_tree().create_tween()
+					tree.tween_property($"../slejbl","modulate",Color.TRANSPARENT,5)
 		

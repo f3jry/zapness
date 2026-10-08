@@ -163,16 +163,20 @@ func use_ability():
 	if $ability_timer.is_stopped():
 		$ability_timer.start()
 		var sel_ability = %abilities.get_child(ability)
-		if sel_ability and !$portal_cast.get_collider().is_in_group("player") and !$portal_cast.get_collider().is_in_group("portal"):
-			var collision_point = $portal_cast.get_collision_point()
-			var collision_normal = $portal_cast.get_collision_normal()
-			sel_ability.use(collision_point, collision_normal)
-			portal_particle.emitting = true
-			$portal_sound.play()
-			
-			# Sync ability use to remote peers
-			if NetworkManager.is_online() and is_local_player:
-				_sync_ability.rpc(collision_point, collision_normal)
+		if sel_ability and $portal_cast.is_colliding():
+			var col = $portal_cast.get_collider()
+			if col and not col.is_in_group("player") and not col.is_in_group("portal"):
+				var collision_point = $portal_cast.get_collision_point()
+				var collision_normal = $portal_cast.get_collision_normal()
+				sel_ability.use(collision_point, collision_normal)
+				portal_particle.emitting = true
+				$portal_sound.play()
+				
+				# Sync ability use to remote peers
+				if NetworkManager.is_online() and is_local_player:
+					_sync_ability.rpc(collision_point, collision_normal)
+			else:
+				laser_info.show_cant()
 		else:
 			laser_info.show_cant()
 

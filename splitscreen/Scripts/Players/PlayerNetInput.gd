@@ -14,7 +14,7 @@ func _ready() -> void:
 		player = get_parent() as CharacterBody2D
 
 func _gather() -> void:
-	if not NetworkManager.is_online:
+	if not NetworkManager.is_online():
 		# Local splitscreen mode
 		var idx = 1
 		if player and "player_index" in player:

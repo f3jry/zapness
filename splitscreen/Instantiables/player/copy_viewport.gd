@@ -10,8 +10,10 @@ func _ready() -> void:
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
-	position = viewport_to_copy.position
-	rotation = viewport_to_copy.rotation
-	own_cam.position = cam_to_copy.position
-	own_cam.rotation = cam_to_copy.rotation
-	own_cam.offset = cam_to_copy.offset
+	if viewport_to_copy:
+		position = viewport_to_copy.position
+		rotation = viewport_to_copy.rotation
+	if own_cam and cam_to_copy:
+		own_cam.position = cam_to_copy.position
+		own_cam.rotation = cam_to_copy.rotation
+		own_cam.offset = cam_to_copy.offset

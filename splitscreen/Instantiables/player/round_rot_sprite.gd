@@ -10,38 +10,14 @@ func _ready() -> void:
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
-	var rot_to_round = get_parent().global_rotation
-	var degrees = rad_to_deg(rot_to_round)
-	var rounded_rot = snappedi(degrees,45)
-	$Player_legs.frame_coords.y = y_coord_leg
+	var rot_to_round = get_parent().global_rotation if get_parent() else 0.0
+	var degrees = posmod(roundi(rad_to_deg(rot_to_round)), 360)
+	var rounded_rot = snappedi(degrees, 45) % 360
+	if has_node("Player_legs"):
+		$Player_legs.frame_coords.y = y_coord_leg
 	global_position = get_parent().global_position.snapped(Vector2.ONE * 8)
 	
-	# Maty licensed code 2024 
 	match rounded_rot:
-		-360:
-			global_rotation = deg_to_rad(-360)
-			texture = texture_90
-		-315:
-			global_rotation = deg_to_rad(-360)
-			texture = texture_45
-		-270:
-			global_rotation = deg_to_rad(-270)
-			texture = texture_90
-		-225:
-			global_rotation = deg_to_rad(-360)
-			texture = texture_45
-		-180:
-			global_rotation = deg_to_rad(-180)
-			texture = texture_90
-		-135:
-			global_rotation = deg_to_rad(-180)
-			texture = texture_45
-		-90:
-			global_rotation = deg_to_rad(-90)
-			texture = texture_90
-		-45:
-			global_rotation = deg_to_rad(-90)
-			texture = texture_45
 		0:
 			global_rotation = deg_to_rad(0)
 			texture = texture_90
@@ -61,13 +37,11 @@ func _process(delta: float) -> void:
 			global_rotation = deg_to_rad(180)
 			texture = texture_45
 		270:
-			global_rotation = deg_to_rad(180)
+			global_rotation = deg_to_rad(270)
 			texture = texture_90
 		315:
 			global_rotation = deg_to_rad(270)
 			texture = texture_45
-		360:
-			global_rotation = deg_to_rad(360)
-			texture = texture_90
-	if texture == texture_90: $Player_legs.frame_coords.x = 0
-	if texture == texture_45: $Player_legs.frame_coords.x = 1
+	if has_node("Player_legs"):
+		if texture == texture_90: $Player_legs.frame_coords.x = 0
+		if texture == texture_45: $Player_legs.frame_coords.x = 1

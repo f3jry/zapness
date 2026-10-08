@@ -8,4 +8,5 @@ func _ready() -> void:
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
-	$"..".progress += speed * delta
+	if get_parent() and "progress" in get_parent():
+		get_parent().progress += speed * delta

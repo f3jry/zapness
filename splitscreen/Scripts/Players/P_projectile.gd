@@ -14,7 +14,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	velocity = dir * speed * delta
 	var col = move_and_collide(velocity)
-	if col and col.get_collider().is_in_group("player"):
+	if col and col.get_collider() and col.get_collider().is_in_group("player"):
 		col.get_collider().damage(damage)
 		queue_free()
 	elif col:

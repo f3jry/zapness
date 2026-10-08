@@ -15,15 +15,19 @@ func create_spawn_icon(spawn):
 		add_child(new_spawn)
 func choose_spawn():
 	
+	if spawns_.is_empty():
+		return
 	var dir = player.last_dir.angle()
 	var last_dif = 1000
-	var last_spawn
+	var last_spawn = null
 	for i in spawns_:
 		var angle 
 		var difference = abs(i.global_position.normalized().angle() - dir)
 		if difference < last_dif:
 			last_dif = difference
 			last_spawn = i 
+	if not last_spawn:
+		return
 	var pos = last_spawn.global_position
 	spawn_player(pos)
 	for i in get_child_count():
