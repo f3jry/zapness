@@ -130,12 +130,12 @@ function broadcastLobbies() {
 }
 
 const httpServer = http.createServer((req, res) => {
-	if (req.url === '/health') {
+	if (req.url === '/health' || req.url === '/relay/health') {
 		res.writeHead(200, { 'content-type': 'text/plain' });
 		res.end('ok');
 		return;
 	}
-	if (req.url.startsWith('/lobbies')) {
+	if (req.url.startsWith('/lobbies') || req.url.startsWith('/relay/lobbies')) {
 		res.writeHead(200, {
 			'content-type': 'application/json',
 			'access-control-allow-origin': '*',

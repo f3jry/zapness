@@ -83,12 +83,25 @@ func _get_relay_url() -> String:
 		var host := str(JavaScriptBridge.eval("window.location.host", true))
 		if host.ends_with("discordsays.com"):
 			var ws_proto := "wss" if proto == "https:" else "ws"
-			return "%s://%s/ws" % [ws_proto, host]
+			return "%s://%s/relay/ws" % [ws_proto, host]
 		elif host.ends_with("github.io"):
 			return "wss://solar-dui-paid-might.trycloudflare.com/ws"
 		var ws_proto := "wss" if proto == "https:" else "ws"
-		return "%s://%s/ws" % [ws_proto, host]
+		return "%s://%s/relay/ws" % [ws_proto, host]
 	return "wss://solar-dui-paid-might.trycloudflare.com/ws"
+
+## HTTP endpoint of the relay for REST requests (e.g. /lobbies, /health).
+func get_relay_http_url(endpoint: String) -> String:
+	var path := endpoint if endpoint.begins_with("/") else "/" + endpoint
+	if _is_web_platform():
+		var proto := str(JavaScriptBridge.eval("window.location.protocol", true))
+		var host := str(JavaScriptBridge.eval("window.location.host", true))
+		if host.ends_with("discordsays.com"):
+			return "%s//%s/relay%s" % [proto, host, path]
+		elif host.ends_with("github.io"):
+			return "https://solar-dui-paid-might.trycloudflare.com%s" % path
+		return "%s//%s/relay%s" % [proto, host, path]
+	return "https://solar-dui-paid-might.trycloudflare.com%s" % path
 
 ## -------------------------------------------------------- lobby control ---
 

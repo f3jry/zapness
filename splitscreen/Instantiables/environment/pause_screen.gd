@@ -126,7 +126,7 @@ func _poll_http_lobbies() -> void:
 	if http_poll_req == null or http_poll_req.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
 		return
 	var channel_id = NetworkManager.get_discord_channel_id()
-	var base_url = "https://solar-dui-paid-might.trycloudflare.com/lobbies"
+	var base_url = NetworkManager.get_relay_http_url("/lobbies")
 	if not channel_id.is_empty():
 		base_url += "?channel=" + channel_id.uri_encode()
 	http_poll_req.request(base_url)
@@ -365,8 +365,10 @@ func _update_menu_buttons() -> void:
 
 	# Main Menu — Idle Discord version menu
 	# "in the discord version there should be create game, lobbies would show up if there are any in the call and that's all."
-	status_label.visible = false
-	status_label.text = ""
+	if status_label.text.is_empty():
+		status_label.visible = false
+	else:
+		status_label.visible = true
 
 	btn_resume.visible = true
 	btn_resume.text = "Create Game"
@@ -389,6 +391,8 @@ func _on_resume_pressed() -> void:
 		NetworkManager.disconnect_game()
 		is_hosting_online = false
 		is_connecting_online = false
+		status_label.text = ""
+		status_label.visible = false
 		_clear_lobby_cards()
 		_last_rendered_lobbies.clear()
 		_update_menu_buttons()
@@ -402,6 +406,9 @@ func _on_resume_pressed() -> void:
 
 	# Main menu -> "Create Game"
 	is_hosting_online = true
+	status_label.visible = true
+	status_label.text = "Creating game..."
+	status_label.modulate = Color(1.0, 0.85, 0.3)
 	_update_menu_buttons()
 	var err = NetworkManager.host_game()
 	if err != OK:
@@ -450,10 +457,11 @@ func _on_player_connected(_peer_id: int) -> void:
 	update_pause()
 
 func _on_connection_failed() -> void:
+	print("pause_screen: connection failed!")
 	is_hosting_online = false
 	is_connecting_online = false
 	status_label.visible = true
-	status_label.text = "Connection failed! Check room code."
+	status_label.text = "Connection failed! Check relay connection."
 	status_label.modulate = Color(1.0, 0.3, 0.3)
 	_update_menu_buttons()
 
