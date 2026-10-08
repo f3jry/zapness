@@ -30,7 +30,7 @@ const RELAY_PEER_ID := 1
 ## The first client in a room - acts as the game host (scoring authority etc).
 const GAME_HOST_PEER_ID := 2
 
-var ws_peer: WebSocketMultiplayerPeer = null
+var ws_peer: MultiplayerPeer = null
 var is_online_mode: bool = false
 var current_lobby_id: String = ""
 var _role_host: bool = false
@@ -116,7 +116,11 @@ func join_game(lobby_id: String) -> Error:
 func _connect_to_relay(room_code: String, as_host: bool) -> Error:
 	_role_host = as_host
 	current_lobby_id = room_code
-	ws_peer = WebSocketMultiplayerPeer.new()
+	if ClassDB.can_instantiate("WebSocketMultiplayerPeer"):
+		ws_peer = ClassDB.instantiate("WebSocketMultiplayerPeer")
+	else:
+		push_error("NetworkManager: WebSocketMultiplayerPeer not available on this platform!")
+		return ERR_UNAVAILABLE
 	var url := "%s?role=%s&room=%s" % [_get_relay_url(), "host" if as_host else "join", room_code]
 	var username := get_discord_username()
 	var avatar := get_discord_avatar()
@@ -128,7 +132,7 @@ func _connect_to_relay(room_code: String, as_host: bool) -> Error:
 	if not channel.is_empty():
 		url += "&channel=" + channel.uri_encode()
 
-	var err := ws_peer.create_client(url)
+	var err: Error = ws_peer.create_client(url)
 	if err != OK:
 		push_error("Failed to start WebSocket client: " + str(err))
 		return err

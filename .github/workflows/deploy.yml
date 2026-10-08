@@ -43,13 +43,13 @@ jobs:
           if [ -d /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ]; then
             cp -r /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable/* "$TEMPLATE_DIR/" || true
           fi
-          if [ -f Detected_profile_templates/godot.web.template_release.wasm32.nothreads.zip ]; then
-            cp Detected_profile_templates/godot.web.template_release.wasm32.nothreads.zip "$TEMPLATE_DIR/web_nothreads_release.zip"
-            cp Detected_profile_templates/godot.web.template_release.wasm32.nothreads.zip "$TEMPLATE_DIR/web_nothreads_debug.zip"
-          fi
-          if [ -f templates/godot.web.template_release.wasm32.nothreads.zip ]; then
-            cp templates/godot.web.template_release.wasm32.nothreads.zip "$TEMPLATE_DIR/web_nothreads_release.zip"
-            cp templates/godot.web.template_release.wasm32.nothreads.zip "$TEMPLATE_DIR/web_nothreads_debug.zip"
+          # Ensure official Godot 4.3 web export templates with all networking classes are present
+          if [ ! -f "$TEMPLATE_DIR/web_nothreads_release.zip" ]; then
+            echo "Downloading official Godot ${GODOT_VERSION} export templates..."
+            wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -O /tmp/templates.tpz
+            unzip -q /tmp/templates.tpz -d /tmp/templates_unzipped
+            cp -r /tmp/templates_unzipped/templates/* "$TEMPLATE_DIR/"
+            rm -rf /tmp/templates.tpz /tmp/templates_unzipped
           fi
 
       - name: Create export output directory
