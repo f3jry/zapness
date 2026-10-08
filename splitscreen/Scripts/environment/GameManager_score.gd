@@ -62,12 +62,16 @@ func _handle_death(index: int) -> void:
 		reset_params()
 		dramatic_pause(0.5, false)
 		await get_tree().create_timer(3.0).timeout
+		if NetworkManager.is_online():
+			_sync_reload_scene.rpc()
 		get_tree().reload_current_scene()
 		await get_tree().create_timer(0.1).timeout
 		announcer.announcement("score 0 - 0")
 		return
 	dramatic_pause()
 	await get_tree().create_timer(2.0).timeout
+	if NetworkManager.is_online():
+		_sync_reload_scene.rpc()
 	get_tree().reload_current_scene()
 	if floor(rounds_played / 3) % 2 != 0:
 		print("swiching sides" + str(rounds_played % 3))
@@ -85,6 +89,13 @@ func _sync_scores(scores: Array, rounds: int, win_idx: int) -> void:
 	player_scores = scores
 	rounds_played = rounds
 	latest_win_index = win_idx
+
+## Round reset reloads the scene; the client must follow the host, or the
+## two simulations diverge permanently (dead avatar stays disabled client-side).
+## Called by the host right before its own reload (host owns authority).
+@rpc("authority", "call_remote", "reliable")
+func _sync_reload_scene() -> void:
+	get_tree().reload_current_scene()
 
 func dramatic_pause(time = 0.35, announce = true):
 	get_tree().paused = true

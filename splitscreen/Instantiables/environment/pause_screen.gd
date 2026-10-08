@@ -58,6 +58,15 @@ func _ready() -> void:
 		_update_menu_buttons()
 		await get_tree().create_timer(0.05, true).timeout
 		call_deferred("update_pause")
+	elif NetworkManager.is_online():
+		# Scene reloaded mid-match (e.g. after a round reset): the fresh
+		# scene defaults to splitscreen with undecided ownership, so re-apply
+		# the online layout instead of dropping back to the menu.
+		has_started_match = true
+		is_paused = false
+		visible = false
+		get_tree().paused = false
+		_apply_online_match_view()
 
 func _process(delta: float) -> void:
 	if discovery_ws != null:
@@ -404,6 +413,7 @@ func _on_resume_pressed() -> void:
 	# Cancel hosting or connecting
 	if is_hosting_online or is_connecting_online:
 		NetworkManager.disconnect_game()
+		_restore_splitscreen_layout()
 		is_hosting_online = false
 		is_connecting_online = false
 		status_label.text = ""
@@ -437,6 +447,7 @@ func _on_online_pressed() -> void:
 	# In-game -> "Leave Match"
 	if has_started_match and NetworkManager.is_online():
 		NetworkManager.disconnect_game()
+		_restore_splitscreen_layout()
 		has_started_match = false
 		is_paused = true
 		_update_menu_buttons()
@@ -454,6 +465,51 @@ func quit() -> void:
 	get_tree().quit()
 
 # ---------------------------------------------------------------------------
+# Online match view: single fullscreen viewport + fixed player ownership.
+# Offline splitscreen keeps both viewports; online each machine shows only
+# its own player's viewport (both avatars still share the same world, so
+# the remote player is visible inside it).
+# ---------------------------------------------------------------------------
+
+## Decide ownership now that the relay is up, then hide the remote player's
+## viewport and give the local one the full width.
+func _apply_online_match_view() -> void:
+	if not NetworkManager.is_online():
+		return
+	var my_index := 1 if NetworkManager.is_host() else 2
+	for p in get_tree().get_nodes_in_group("player"):
+		if p.has_method("setup_online_ownership"):
+			p.setup_online_ownership()
+		var cam = p.get_node_or_null("cam") as Camera2D
+		if cam != null:
+			cam.enabled = int(p.get("player_index")) == my_index
+	for vc in get_tree().get_nodes_in_group("viewport"):
+		if not (vc is SubViewportContainer):
+			continue
+		var viewed = vc.get("player")
+		if viewed == null:
+			continue
+		vc.visible = int(viewed.get("player_index")) == my_index
+		var grid = vc.get_parent()
+		if grid != null and grid is GridContainer:
+			(grid as GridContainer).columns = 1
+
+## Back to local splitscreen (leaving / disconnecting an online match).
+func _restore_splitscreen_layout() -> void:
+	for p in get_tree().get_nodes_in_group("player"):
+		var cam = p.get_node_or_null("cam") as Camera2D
+		if cam != null:
+			cam.enabled = true
+		if "is_local_player" in p:
+			p.set("is_local_player", true)
+	for vc in get_tree().get_nodes_in_group("viewport"):
+		if vc is SubViewportContainer and vc.get("player") != null:
+			vc.visible = true
+			var grid = vc.get_parent()
+			if grid != null and grid is GridContainer:
+				(grid as GridContainer).columns = 2
+
+# ---------------------------------------------------------------------------
 # Network Callbacks
 # ---------------------------------------------------------------------------
 
@@ -461,6 +517,7 @@ func _on_player_connected(_peer_id: int) -> void:
 	print("pause_screen: player connected! starting match...")
 	is_hosting_online = false
 	is_connecting_online = false
+	_apply_online_match_view()
 	status_label.visible = true
 	status_label.text = "Player connected! Starting match..."
 	status_label.modulate = Color(0.3, 1.0, 0.4)
@@ -483,6 +540,7 @@ func _on_connection_failed() -> void:
 func _on_player_disconnected(_peer_id: int) -> void:
 	if has_started_match and NetworkManager.is_online():
 		has_started_match = false
+		_restore_splitscreen_layout()
 		is_hosting_online = false
 		is_connecting_online = false
 		is_paused = true

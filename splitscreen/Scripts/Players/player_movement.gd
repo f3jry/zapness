@@ -25,7 +25,16 @@ func _ready() -> void:
 	$Line2D.points = [Vector2.ZERO, Vector2.ZERO]
 	$Line2D.modulate = Color.TRANSPARENT
 	
-	# Setup multiplayer authority if in online mode
+	# Setup multiplayer authority if in online mode.
+	# NOTE: also called at match start (see pause_screen), because players
+	# are usually instantiated before the relay connection exists, when
+	# is_online() is still false and ownership can't be decided yet.
+	setup_online_ownership()
+
+## (Re)decide which player node this machine controls. Must run once the
+## relay connection is up (match start) and again after every scene reload
+## inside an ongoing online match.
+func setup_online_ownership() -> void:
 	if NetworkManager.is_online():
 		is_local_player = _is_owned_by_local_peer()
 		if is_local_player:
